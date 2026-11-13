@@ -1,0 +1,4 @@
+trades=false pace=2 n=5000 win=41.2 loss=39.0 draw=19.8 words=2.13 botWords=2.11 damage=4.66 idle=78.1 exchanges/game=0.00 usefulExchange=0.0 usefulDraw=61.9 zeroHits=0.0
+trades=false pace=3 n=5000 win=41.2 loss=39.1 draw=19.7 words=2.13 botWords=2.11 damage=4.66 idle=67.2 exchanges/game=0.00 usefulExchange=0.0 usefulDraw=62.1 zeroHits=0.0
+trades=true pace=2 n=5000 win=43.1 loss=45.4 draw=11.6 words=3.17 botWords=3.23 damage=7.36 idle=70.7 exchanges/game=3.94 usefulExchange=85.1 usefulDraw=66.4 zeroHits=0.0
+trades=true pace=3 n=5000 win=43.4 loss=45.0 draw=11.5 words=3.18 botWords=3.23 damage=7.41 idle=56.1 exchanges/game=3.93 usefulExchange=85.2 usefulDraw=66.6 zeroHits=0.0
