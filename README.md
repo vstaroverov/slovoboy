@@ -9,7 +9,7 @@
 - Скрытый обмен, перенос, сброс, взаимная замена слов. Оба порядка выбора слота и фишки.
 - Отдельные экраны победы и поражения, иллюстрации и звуки. Пауза оформлена в палитре игры.
 
-[Скачать APK](releases/rustore/slovoboy-levels-rc1.apk). Правила и проверки — [LEVELS.md](LEVELS.md).
+[Играть в браузере](https://vstaroverov.github.io/slovoboy/) · [Скачать APK](releases/rustore/slovoboy-levels-rc1.apk). Правила и проверки — [LEVELS.md](LEVELS.md).
 
 ## Android
 
@@ -34,7 +34,7 @@ node server.mjs
 
 Локально http://localhost:4173. На iPhone открывайте опубликованную HTTPS-страницу в Safari; «Поделиться → На экран Домой» добавляет иконку. Офлайн-ресурсы кэшируются после первой успешной загрузки. Реальный Safari ещё не проверен.
 
-Публикация: GitHub Settings → Pages → Deploy from a branch → main → /docs → Save. Развёртывание ещё не подтверждено: подключение GitHub недоступно, управление Chrome остановлено инструментом.
+Публикация: GitHub Settings → Pages → Deploy from a branch → main → /docs → Save. Опубликовано 14.11.2026: https://vstaroverov.github.io/slovoboy/. Включён HTTPS. Игра, словарь, изображения и все звуки проверены по SHA256 опубликованных файлов.
 
 ## Данные
 
