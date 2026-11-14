@@ -9,7 +9,7 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Release build or lint failed.'}
     if(-not $OutputDirectory){$OutputDirectory=Join-Path $projectRoot 'releases\rustore'}
     New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-    $apk=Join-Path $OutputDirectory 'slovoboy-levels-rc2.apk'
+    $apk=Join-Path $OutputDirectory 'slovoboy-levels-rc3.apk'
     Copy-Item -LiteralPath 'app\build\outputs\apk\release\app-release.apk' -Destination $apk -Force
     & "$env:ANDROID_HOME\build-tools\35.0.0\apksigner.bat" verify --verbose $apk
     if($LASTEXITCODE -ne 0){throw 'APK signature verification failed.'}

@@ -1,0 +1,12 @@
+import {Game} from '../dist/engine.js';import fs from 'node:fs';import assert from 'node:assert/strict';
+const {words,sets}=JSON.parse(fs.readFileSync(new URL('../dist/words.json',import.meta.url)));const at=(level,elapsed)=>{const g=new Game(7,level,words,sets);g.elapsed=g.totalElapsed=elapsed;return g};
+let g=at(2,4);g.human.hand=[];const bot=g.bot.hand.length;assert.equal(g.secondsToDraw(),1);g.tick();assert.equal(g.human.hand.length,1);assert.equal(g.human.nextDrawAt,15);assert.equal(g.secondsToDraw(),10);assert.equal(g.bot.hand.length,bot);assert.equal(g.bot.nextDrawAt,10);
+g=at(2,4);g.human.hand=[];g.bot.hand=[];g.tick();assert.equal(g.human.hand.length,1);assert.equal(g.bot.hand.length,1);
+g=at(2,9);g.human.hand=[];g.tick();assert.equal(g.human.hand.length,1);
+g=at(1,4);g.human.hand=[];assert.equal(g.secondsToDraw(),6);g.tick();assert.equal(g.human.hand.length,0);
+g=at(2,0);g.bot.hand=[];let c=g.bot.cards[0];c.filled[0]=true;g.bot.hand=[c.parts[1]];g.tick();g.tick();assert.equal(g.bot.hand.length,0);assert.equal(g.bot.nextDrawAt,3);g.tick();assert.equal(g.bot.hand.length,1);
+g=at(2,4);g.human.hand=[];g=Game.restore(JSON.parse(g.serialize()),words,sets);g.tick();assert.equal(g.human.hand.length,1);g=Game.restore(JSON.parse(g.serialize()),words,sets);assert.equal(g.secondsToDraw(),10);
+g=at(2,11);delete g.human.nextDrawAt;delete g.bot.nextDrawAt;g=Game.restore(JSON.parse(g.serialize()),words,sets);assert.equal(g.human.nextDrawAt,20);
+g=at(2,89);g.human.hand=[];g.tick();assert.equal(g.result,'round');const count=g.human.hand.length;g.continueRound();assert.equal(g.human.hand.length,count);assert.equal(g.secondsToDraw(),9);
+g=at(2,4);g.human.hand=[];g.result='win';g.tick();assert.equal(g.human.hand.length,0);
+console.log('Web empty hand: independent one-second draws, no double deal, bot delay, serialization/migration and unchanged level1 passed.');

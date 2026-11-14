@@ -5,7 +5,7 @@ if(-not $OutputDirectory){$OutputDirectory=Join-Path $projectRoot 'build-check-r
 $compiler=if($env:JAVA_HOME){Join-Path $env:JAVA_HOME 'bin\javac.exe'}else{'javac'}
 $runtime=if($env:JAVA_HOME){Join-Path $env:JAVA_HOME 'bin\java.exe'}else{'java'}
 $sources=@('Game','Rules','GameAudio','WordCatalog','StartCountdown','WordHistory','Rc5Catalog','Progression') | ForEach-Object {Join-Path $projectRoot "app\src\main\java\ru\serg\slogi\$_.java"}
-$sources+=@('DuelRulesCheck','GameCheck','BalanceProbe','GameAudioCheck','UpdateCheck','RoundSessionProbe','LevelCheck','ProgressionCheck') | ForEach-Object {Join-Path $projectRoot "tests\$_.java"}
+$sources+=@('DuelRulesCheck','GameCheck','BalanceProbe','GameAudioCheck','UpdateCheck','RoundSessionProbe','LevelCheck','ProgressionCheck','Level2DrawCheck','WebFrames109') | ForEach-Object {Join-Path $projectRoot "tests\$_.java"}
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 & $compiler -encoding UTF-8 -d $OutputDirectory @sources
 if($LASTEXITCODE -ne 0){throw 'RC3 checks did not compile'}
@@ -24,3 +24,6 @@ if($LASTEXITCODE -ne 0){throw 'Level RC3/RC5 parity failed'}
 
 & $runtime -cp $OutputDirectory ProgressionCheck
 if($LASTEXITCODE -ne 0){throw "Progression failed"}
+
+& $runtime -cp $OutputDirectory Level2DrawCheck
+if($LASTEXITCODE -ne 0){throw 'Level2 fast draw failed'}

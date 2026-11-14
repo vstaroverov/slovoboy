@@ -1,0 +1,5 @@
+import ru.serg.slogi.*;import java.nio.charset.StandardCharsets;import java.security.*;
+/** Export cross-language reference frames after explicit rule change. */
+public class WebFrames109 {
+ public static void main(String[] args)throws Exception{for(int seed=0;seed<30;seed++){Game g=new Game(seed,2,null);MessageDigest hash=MessageDigest.getInstance("SHA-256");for(int t=0;t<450;t++){hash.update(LevelCheck.frame(g).getBytes(StandardCharsets.UTF_8));boolean placed=false;for(int h=0;h<g.human.hand.size()&&!placed;h++)for(int c=0;c<6&&!placed;c++)for(int s=0;s<g.human.cards.get(c).parts.length&&!placed;s++)if(!g.human.cards.get(c).filled[s]&&g.human.cards.get(c).parts[s].equals(g.human.hand.get(h)))placed=g.place(h,c,s);if(t%7==0&&!g.human.hand.isEmpty())g.offer(g.human.hand.size()-1);if(t%17==0)g.requestCard(5);g.tick();if(g.canContinue())g.continueRound();}StringBuilder out=new StringBuilder();for(byte b:hash.digest())out.append(String.format("%02x",b));System.out.println("2 "+seed+" "+out);}}
+}

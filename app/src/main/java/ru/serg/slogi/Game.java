@@ -34,6 +34,7 @@ public final class Game implements Serializable {
         public final ArrayList<String> hand = new ArrayList<>();
         public String offer, lastReceived;
         public int receivedAt=-100;
+        public int nextDrawAt=Rules.DRAW_SECONDS;
         public int replace = -1, hp = Rules.START_HP, wordsCompleted, damageDealt, roundWords, roundDamage;
         public int completed() { return wordsCompleted; }
         public int score() { return damageDealt; }
@@ -171,10 +172,17 @@ public final class Game implements Serializable {
     }
     public boolean canContinue() {return result!=null && elapsed>=LIMIT && human.hp>0 && bot.hp>0;}
     public int drawInterval() {return level==1?10:Rules.drawSecondsForRound(round);}
-    public int secondsToDraw() {int interval=drawInterval();return interval-elapsed%interval;}
+    public int secondsToDraw() {return secondsToDraw(human);}
+    public int secondsToDraw(Player p) {
+        if(level!=2){int interval=drawInterval();return interval-elapsed%interval;}
+        return Math.max(1,Math.min(p.nextDrawAt-totalElapsed,p.hand.isEmpty()?1:Integer.MAX_VALUE));
+    }
+    private void armEmptyDraw(Player p){if(p.hand.isEmpty())p.nextDrawAt=Math.min(p.nextDrawAt,totalElapsed+1);}
+    private void personalDraw(Player p){armEmptyDraw(p);if(totalElapsed>=p.nextDrawAt){draw(p,Rules.DRAW_COUNT);p.nextDrawAt=totalElapsed+drawInterval();}}
     public boolean continueRound() {
         if(!canContinue()) return false;
         round++;elapsed=0;result=null;endReason="";
+        if(level==2)human.nextDrawAt=bot.nextDrawAt=totalElapsed+drawInterval();
         human.roundWords=0;human.roundDamage=0;bot.roundWords=0;bot.roundDamage=0;
         return true;
     }
@@ -189,6 +197,7 @@ public final class Game implements Serializable {
             if(human.roundWords==0) human.roundWords=human.wordsCompleted;
             if(bot.roundWords==0) bot.roundWords=bot.wordsCompleted;
         }
+        if(level==2)for(Player p:new Player[]{human,bot})if(p.nextDrawAt<=totalElapsed)p.nextDrawAt=totalElapsed+drawInterval()-elapsed%drawInterval();
         if(vocabulary==null)vocabulary=new WordHistory.Profile();
         if(level==0)migrateSingleLetters();
         if(result!=null) resolveEnd();
@@ -296,10 +305,12 @@ public final class Game implements Serializable {
     }
     public void tick() {
         if(result!=null) return;
+        if(level==2){armEmptyDraw(human);armEmptyDraw(bot);}
         elapsed++;totalElapsed++;
         if(elapsed%Rules.BOT_SECONDS==0) botAction();
         if(result!=null) return;
-        if(elapsed%drawInterval()==0) {draw(human,Rules.DRAW_COUNT);draw(bot,Rules.DRAW_COUNT);}
+        if(level==2){personalDraw(human);personalDraw(bot);}
+        else if(elapsed%drawInterval()==0) {draw(human,Rules.DRAW_COUNT);draw(bot,Rules.DRAW_COUNT);}
         resolveEnd();
     }
 }

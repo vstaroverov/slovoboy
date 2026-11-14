@@ -8,14 +8,14 @@ export class Random {
 }
 const card=split=>({parts:split.split('-'),filled:split.split('-').map(()=>false)});
 const word=c=>c.parts.join(''),freq=(a,s)=>a.filter(x=>x===s).length;
-const player=()=>({cards:[],hand:[],offer:null,lastReceived:null,receivedAt:-100,replace:-1,hp:30,wordsCompleted:0,damageDealt:0,roundWords:0,roundDamage:0});
+const player=()=>({cards:[],hand:[],offer:null,lastReceived:null,receivedAt:-100,nextDrawAt:10,replace:-1,hp:30,wordsCompleted:0,damageDealt:0,roundWords:0,roundDamage:0});
 export class Game {
  constructor(seed,level,catalog,sets,history={human:{seen:{},last:{},draws:0},bot:{seen:{},last:{},draws:0}}){
   Object.assign(this,{matchId:globalThis.crypto?.randomUUID?.()??`duel-${Date.now()}-${Math.random()}`,victoryRewarded:false,level,catalog,sets,history,random:new Random(seed),human:player(),bot:player(),bag:[],elapsed:0,totalElapsed:0,round:1,result:null,attackId:0,eventId:0,exchangeCount:0,usefulExchangeHuman:0});
   if(level===1){let first=this.random.int(sets.length);this.human.cards=sets[first].map(card);this.bot.cards=sets[(first+1)%sets.length].map(card)}else for(const p of [this.human,this.bot]){for(const n of [4,3,3,2,2,2])p.cards.push(this.select(p,n));p.cards=[...p.cards.slice(3),p.cards[1],p.cards[2],p.cards[0]]}
   for(const p of [this.human,this.bot]){p.hand.push(...p.cards[this.random.int(3)].parts);this.draw(p,6-p.hand.length)}
  }
- static restore(data,catalog,sets){let g=Object.assign(Object.create(Game.prototype),data);g.matchId??=globalThis.crypto?.randomUUID?.()??`legacy-${Date.now()}-${Math.random()}`;g.catalog=catalog;g.sets=sets;g.random=Object.assign(Object.create(Random.prototype),{seed:BigInt(data.random.seed)});return g}
+ static restore(data,catalog,sets){let g=Object.assign(Object.create(Game.prototype),data);g.matchId??=globalThis.crypto?.randomUUID?.()??`legacy-${Date.now()}-${Math.random()}`;g.catalog=catalog;g.sets=sets;if(g.level===2)for(const p of [g.human,g.bot])if(!Number.isFinite(p.nextDrawAt)||p.nextDrawAt<=g.totalElapsed)p.nextDrawAt=g.totalElapsed+g.interval()-g.elapsed%g.interval();g.random=Object.assign(Object.create(Random.prototype),{seed:BigInt(data.random.seed)});return g}
  serialize(){return JSON.stringify(this,(k,v)=>typeof v==='bigint'?v.toString():k==='catalog'||k==='sets'?undefined:v)}
  select(p,n){
   let all=this.level===1?this.sets.flat():this.catalog;
@@ -48,6 +48,9 @@ export class Game {
  }
  interval(){return this.level===1?10:Math.max(1,11-this.round)}
  resolve(){if(this.human.hp===0||this.bot.hp===0)this.result=this.bot.hp===0?'win':'lose';else if(this.elapsed>=90)this.result='round'}
- tick(){if(this.result)return;this.elapsed++;this.totalElapsed++;if(this.elapsed%2===0)this.botAction();if(this.result)return;if(this.elapsed%this.interval()===0){this.draw(this.human,1);this.draw(this.bot,1)}this.resolve()}
- continueRound(){if(this.result!=='round')return false;this.result=null;this.round++;this.elapsed=0;for(const p of [this.human,this.bot])p.roundWords=p.roundDamage=0;return true}
+ secondsToDraw(p=this.human){if(this.level!==2)return this.interval()-this.elapsed%this.interval();return Math.max(1,Math.min(p.nextDrawAt-this.totalElapsed,p.hand.length===0?1:Infinity))}
+ armEmptyDraw(p){if(!p.hand.length)p.nextDrawAt=Math.min(p.nextDrawAt,this.totalElapsed+1)}
+ personalDraw(p){this.armEmptyDraw(p);if(this.totalElapsed>=p.nextDrawAt){this.draw(p,1);p.nextDrawAt=this.totalElapsed+this.interval()}}
+ tick(){if(this.result)return;if(this.level===2){this.armEmptyDraw(this.human);this.armEmptyDraw(this.bot)}this.elapsed++;this.totalElapsed++;if(this.elapsed%2===0)this.botAction();if(this.result)return;if(this.level===2){this.personalDraw(this.human);this.personalDraw(this.bot)}else if(this.elapsed%this.interval()===0){this.draw(this.human,1);this.draw(this.bot,1)}this.resolve()}
+ continueRound(){if(this.result!=='round')return false;this.result=null;this.round++;this.elapsed=0;if(this.level===2)this.human.nextDrawAt=this.bot.nextDrawAt=this.totalElapsed+this.interval();for(const p of [this.human,this.bot])p.roundWords=p.roundDamage=0;return true}
 }
