@@ -15,8 +15,8 @@ android {
         applicationId 'ru.slavikus.slovoboy'
         minSdk 23
         targetSdk 35
-        versionCode 106
-        versionName '1.0.0-rc3-update1'
+        versionCode 107
+        versionName '1.1.0-levels-rc1'
     }
     buildFeatures { buildConfig true }
     signingConfigs {

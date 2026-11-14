@@ -60,6 +60,7 @@ final class BoardView extends View {
         scale=Math.min(width/W,height/H);ox=getPaddingLeft()+(width-W*scale)/2;oy=getPaddingTop()+(height-H*scale)/2;
         c.save();c.translate(ox,oy);c.scale(scale,scale);
         Game g=a.game;String chosen=a.chosen();
+        if(!a.screen.equals("game")){shell();c.restore();return;}
         if(a.matching()){matchmaking();c.restore();return;}
         text("словобой",20,39,24,INK,true);text("РАУНД "+g.round,156,37,11,PURPLE,true);
         int remaining=Game.LIMIT-g.elapsed;
@@ -106,7 +107,7 @@ final class BoardView extends View {
         center(a.soundEnabled()?"Звук: вкл":"Звук: выкл",151,852,12,PURPLE,true);hit(108,830,86,38,a::toggleSound);label(a.soundEnabled()?"Звук включён. Выключить звук":"Звук выключен. Включить звук");
         center(g.human.replace>=0?"Заменить слово ✓":"Заменить слово",309,852,13,PURPLE,true);hit(205,830,207,38,a::dealer);label("Заменить слово: замена по взаимной заявке");
         if(g.result!=null) finish();else if(a.awaitingResume) resumeOverlay();
-        if(g.result!=null || a.awaitingResume)button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,690,172,44,false,a::toggleSound);
+        if(g.result!=null || a.awaitingResume)button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,790,172,44,false,a::toggleSound);
         c.restore();
     }
     private void health(float x,float y,String label,int hp,int score,int accent) {
@@ -149,18 +150,62 @@ final class BoardView extends View {
         center("Ничего не пропущено — продолжайте со своего места",216,411,11,MUTED,false);
         button("Продолжить дуэль",58,453,316,56,true,()->a.resumeMatch());
     }
+    private void star(float x,float y,float radius,int color) {
+        Path shape=new Path();for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float r=i%2==0?radius:radius*.46f;float px=x+(float)Math.cos(angle)*r,py=y+(float)Math.sin(angle)*r;if(i==0)shape.moveTo(px,py);else shape.lineTo(px,py);}shape.close();p.setColor(color);canvas.drawPath(shape,p);
+    }
+    private void brand(float y,boolean dark) {
+        star(216,y,53,0xffffcc66);p.setColor(dark?0xff242039:PURPLE);p.setStrokeWidth(7);p.setStrokeCap(Paint.Cap.ROUND);canvas.drawLine(198,y-7,216,y+15,p);canvas.drawLine(216,y+15,234,y-7,p);p.setStrokeCap(Paint.Cap.BUTT);
+        center("V-STAR GAMES",216,y+91,22,dark?WHITE:INK,true);
+        center("ИГРАЙ. ДУМАЙ. ПОБЕЖДАЙ.",216,y+116,10,dark?0xffbdb2df:MUTED,true);
+    }
+    private void shell(){
+        hits.clear();
+        if(a.screen.equals("splash")){box(0,0,W,H,0xff242039,0);brand(345,true);return;}
+        if(a.screen.equals("menu")){
+            brand(140,false);center("СЛОВОБОЙ",216,355,42,INK,true);
+            center("Каждое слово — твой удар",216,389,16,MUTED,false);
+            box(72,425,84,68,WHITE,18);center("СЛО",114,469,24,PURPLE,true);
+            box(166,425,84,68,WHITE,18);center("ВО",208,469,24,PURPLE,true);
+            box(260,425,100,68,0xffffcc66,18);center("БОЙ",310,469,24,INK,true);
+            button("Начать играть",42,546,348,60,true,a::showMap);
+            if(a.started)button("Продолжить дуэль",42,620,348,52,false,a::continueSaved);
+            button("Выход",42,696,348,52,false,a::exitGame);
+            center("Звук: "+(a.soundEnabled()?"включён":"выключен"),216,799,14,PURPLE,true);hit(120,773,192,44,a::toggleSound);label("Переключить звук");
+            return;
+        }
+        text("Карта уровней",24,60,29,INK,true);text("Выберите свой следующий вызов",24,92,14,MUTED,false);
+        p.setColor(LINE);p.setStrokeWidth(6);canvas.drawLine(110,246,320,473,p);canvas.drawLine(320,473,170,700,p);
+        levelNode(1,103,222,"Классика","36 слов · правила RC3","Раздача каждые 10 секунд",a.won(1));
+        levelNode(2,316,464,"Открытия","360 слов · правила RC5","Новые слова чаще · раздача ускоряется",a.won(2));
+        box(101,662,130,64,LINE,26);center("Скоро",166,702,18,MUTED,true);
+        center("Новые правила — на следующих уровнях",216,763,13,MUTED,false);
+        button("На главную",24,802,384,54,false,a::home);
+    }
+    private void levelNode(int level,float x,float y,String title,String rules,String detail,boolean won){
+        box(24,y-45,384,186,WHITE,24);box(x-33,y-29,66,66,won?GREEN:PURPLE,23);center(won?"✓":String.valueOf(level),x,y+16,28,WHITE,true);
+        float tx=level==1?153:47;text(title,tx,y-6,24,INK,true);text(won?"ПОБЕДА ЗАСЧИТАНА":"ДОСТУПЕН",tx,y+19,10,won?GREEN:MUTED,true);
+        text(rules,43,y+67,15,INK,true);text(detail,43,y+94,12,MUTED,false);
+        hit(24,y-45,384,186,()->a.enterLevel(level));label("Уровень "+level+". "+title+". "+rules+". "+detail);
+    }
+    private void resultArt(boolean win){
+        if(win){
+            for(int i=0;i<22;i++){float x=47+(i*73)%338,y=117+(i*41)%153;box(x,y,5,11,i%3==0?PURPLE:i%3==1?0xffffc65c:GREEN,2);}
+            box(161,192,110,53,0xffffc65c,28);box(206,232,20,39,0xffe5a541,5);box(175,267,82,13,0xffffc65c,6);star(216,196,44,0xffffcf65);star(216,196,20,WHITE);
+        }else{
+            box(160,145,112,112,PALE,25);star(216,184,25,MUTED);p.setColor(MUTED);p.setStrokeWidth(4);canvas.drawLine(188,217,201,217,p);canvas.drawLine(231,217,244,217,p);p.setStyle(Paint.Style.STROKE);canvas.drawArc(204,231,228,250,200,140,false,p);p.setStyle(Paint.Style.FILL);
+        }
+    }
     private void finish() {
-        Game g=a.game;boolean next=g.canContinue();
-        veil();box(24,250,384,405,WHITE,28);
-        p.setTypeface(bold);p.setTextSize(26);float size=Math.min(26,26*350/Math.max(1,p.measureText(g.result)));
-        center(g.result,216,297,size,PURPLE,true);
-        center("Здоровье: "+g.human.hp+" : "+g.bot.hp,216,337,20,INK,true);
-        center("Урон за раунд: "+g.human.roundDamage+" : "+g.bot.roundDamage,216,371,16,MUTED,false);
-        center("Всего собрано слов: "+g.human.completed()+" : "+g.bot.completed(),216,398,14,MUTED,false);
-        fit(next?"Следующая раздача — каждые "+Rules.drawSecondsForRound(g.round+1)+" с. HP сохраняются.":g.endReason,45,430,342,12,MUTED,false);
-        if(next) button("Продолжить → раунд "+(g.round+1),48,451,336,50,true,()->a.nextRound());
-        button("Ещё одна дуэль",48,next?512:465,336,50,!next,()->a.fresh());
-        button("Выйти",48,next?573:526,336,50,false,()->a.exitGame());
+        Game g=a.game;boolean next=g.canContinue(),win=g.bot.hp==0;
+        veil();box(24,next?224:88,384,next?443:666,WHITE,28);
+        if(!next){resultArt(win);center(win?"Вы победили!":"Вы проиграли",216,333,33,win?GREEN:INK,true);center((win?"Победа":"Поражение")+" в "+g.round+" раунде!",216,369,19,win?PURPLE:MUTED,true);center(win?"Отличная игра. Слова — ваша сила!":"Новая дуэль — новый шанс на победу",216,403,13,MUTED,false);}
+        else {center(g.result,216,275,26,PURPLE,true);center("Раунд завершён. Дуэль продолжается",216,311,13,MUTED,false);}
+        float y=next?359:458;
+        box(48,y-25,336,99,BG,18);center("Здоровье   "+g.human.hp+" : "+g.bot.hp,216,y+6,22,INK,true);
+        center("Урон за раунд   "+g.human.roundDamage+" : "+g.bot.roundDamage,216,y+35,15,MUTED,false);center("Слов собрано   "+g.human.completed()+" : "+g.bot.completed(),216,y+59,13,MUTED,false);
+        if(next){center("Раздача раз в "+(g.level==1?10:Rules.drawSecondsForRound(g.round+1))+" с · HP сохранены",216,469,13,MUTED,false);button("Продолжить → раунд "+(g.round+1),48,491,336,50,true,a::nextRound);}
+        button("Ещё одна дуэль",48,next?552:568,336,52,!next,a::fresh);
+        button("Выйти на главную",48,next?613:632,336,50,false,a::home);
     }
     @Override public boolean onTouchEvent(MotionEvent e) {
         float x=(e.getX()-ox)/scale,y=(e.getY()-oy)/scale;
@@ -189,7 +234,7 @@ final class BoardView extends View {
                 if(id==HOST_VIEW_ID) {
                     android.view.accessibility.AccessibilityNodeInfo node=android.view.accessibility.AccessibilityNodeInfo.obtain(BoardView.this);
                     BoardView.this.onInitializeAccessibilityNodeInfo(node);
-                    node.setContentDescription(a.matching()?a.countdown.description():(a.game.result!=null?a.game.result+". ":"Словобой. Раунд "+a.game.round+". ")+"Ваши HP "+a.game.human.hp+", HP соперника "+a.game.bot.hp+". Осталось "+(Game.LIMIT-a.game.elapsed)+" секунд. Раздача каждые "+a.game.drawInterval()+" с, следующая через "+a.game.secondsToDraw()+" с.");
+                    node.setContentDescription(!a.screen.equals("game")?(a.screen.equals("map")?"Карта уровней. Выберите классику RC3 или открытия RC5.":a.screen.equals("splash")?"V-Star Games":"Словобой. Главное меню."):a.matching()?a.countdown.description():(a.game.result!=null?a.game.result+". ":"Словобой. Раунд "+a.game.round+". ")+"Ваши HP "+a.game.human.hp+", HP соперника "+a.game.bot.hp+". Осталось "+(Game.LIMIT-a.game.elapsed)+" секунд. Раздача каждые "+a.game.drawInterval()+" с, следующая через "+a.game.secondsToDraw()+" с.");
                     for(int i=0;i<hits.size();i++) node.addChild(BoardView.this,i);
                     return node;
                 }

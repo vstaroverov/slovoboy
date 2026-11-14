@@ -6,6 +6,8 @@ import android.view.*;
 
 public final class MainActivity extends Activity {
     Game game;
+    String screen="splash";
+    private android.content.SharedPreferences campaign;
     StartCountdown countdown;
     BoardView board;
     boolean started, dialogOpen, foreground, awaitingResume;
@@ -22,11 +24,11 @@ public final class MainActivity extends Activity {
             if(matching() && foreground && !dialogOpen) {
                 if(countdown.tick()){beginMatch();return;}
                 save();board.invalidate();board.announceForAccessibility(String.valueOf(countdown.remaining()));
-            } else if(started && !dialogOpen && !awaitingResume && foreground && game.result==null) {
+            } else if(screen.equals("game") && started && !dialogOpen && !awaitingResume && foreground && game.result==null) {
                 int event=game.eventId, attack=game.attackId; int count=game.human.hand.size();
                 GameAudio.Before before=new GameAudio.Before(game);
                 game.tick();
-                sounds.play(GameAudio.changed(before,game));
+                sounds.play(GameAudio.changed(before,game));recordVictory();
                 if(attack!=game.attackId) { board.showAttack(); say(game.attackText()); }
                 else if(event!=game.eventId) say(game.event.startsWith("Скрытый")?"Обмен состоялся! Новая фишка уже в руке.":"Слова заменены. Слоги вернулись в руку.");
                 else if(game.human.hand.size()>count) say("Новые слоги! Выберите фишку внизу.");
@@ -38,6 +40,7 @@ public final class MainActivity extends Activity {
     };
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        campaign=getSharedPreferences("campaign",MODE_PRIVATE);
         sounds=new SoundEffects(this);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
                 store=new SessionStore(this);
@@ -67,20 +70,21 @@ public final class MainActivity extends Activity {
             return insets;
         });
         board.requestApplyInsets();
+        handler.postDelayed(()->{if(screen.equals("splash")){screen="menu";board.invalidate();}},1400);
     }
     @Override public void onResume() {super.onResume();foreground=true;sounds.setActive(true);restartClock();}
     @Override public void onPause() {foreground=false;sounds.setActive(false);handler.removeCallbacks(clock);awaitingResume=started && game.result==null;save();super.onPause();}
     @Override public void onDestroy() {handler.removeCallbacks(clock);if(currentDialog!=null)currentDialog.dismiss();sounds.close();super.onDestroy();}
     @Override public void onSaveInstanceState(Bundle b) {b.putSerializable("game",game);b.putSerializable("countdown",countdown);b.putBoolean("started",started);b.putInt("selected",selected);b.putInt("targetCard",targetCard);b.putInt("targetSlot",targetSlot);b.putString("targetWord",targetWord);super.onSaveInstanceState(b);}
-        void save() {if(store!=null && game!=null) store.save(game,started,selected,targetCard,targetSlot,targetWord,countdown);}
-    boolean matching() {return !started && game.result==null;}
+        void save() {if(store!=null && game!=null){store.save(game,started,selected,targetCard,targetSlot,targetWord,countdown);if(game.level==2)saveHistory();}}
+    boolean matching() {return screen.equals("game") && !started && game.result==null;}
         private void restartClock() {handler.removeCallbacks(clock);if(foreground)handler.postDelayed(clock,1000);}
     void beginMatch() {started=true;awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.START);say("Выберите фишку и слот — в любом порядке.");}
     void resumeMatch() {awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.SELECT);if(game.dictionaryUpdatedOnLoad){game.dictionaryUpdatedOnLoad=false;say("Слова с одиночными буквами заменены. Подходящие фишки возвращены в руку.");}save();board.invalidate();}
     boolean soundEnabled() {return sounds.enabled();}
     void toggleSound() {sounds.setEnabled(!sounds.enabled());if(sounds.enabled())sounds.play(GameAudio.Cue.SELECT);board.invalidate();board.announceForAccessibility(sounds.enabled()?"Звук включён":"Звук выключен");}
     private void changedSound(GameAudio.Before before,GameAudio.Cue fallback) {GameAudio.Cue cue=GameAudio.changed(before,game);sounds.play(cue==null?fallback:cue);}
-    @Override public void onBackPressed() {if(started && game.result==null) pause();else super.onBackPressed();}
+    @Override public void onBackPressed() {if(screen.equals("game")) {if(game.result==null)pause();else home();}else if(screen.equals("map")){screen="menu";board.invalidate();}else exitGame();}
     void say(String s) {message=s;messageUntil=SystemClock.uptimeMillis()+4500;board.invalidate();save();board.announceForAccessibility(s);}
     String chosen() {return selected>=0 && selected<game.human.hand.size()?game.human.hand.get(selected):null;}
     void clearTarget() {targetCard=-1;targetSlot=-1;targetWord="";}
@@ -105,7 +109,7 @@ public final class MainActivity extends Activity {
         targetCard=ci;targetSlot=si;targetWord=card.word();
         GameAudio.Before before=new GameAudio.Before(game);
         if(game.place(selected,ci,si)) {
-            changedSound(before,GameAudio.Cue.PLACE);
+            changedSound(before,GameAudio.Cue.PLACE);recordVictory();
             selected=-1;clearTarget();
             if(card.complete()){board.showAttack();say(game.attackText());}
             else say("Слог поставлен. Заполните всё слово, чтобы ударить.");
@@ -138,7 +142,7 @@ public final class MainActivity extends Activity {
     }
     void rules() {
         showDialog(new AlertDialog.Builder(this).setTitle(Rules.VERSION)
-            .setMessage(Rules.TEXT).setPositiveButton("На стол",null).setNeutralButton("Об игре",(d,w)->handler.post(this::about)).create());
+            .setMessage(levelRules()+"\n\n"+Rules.TEXT).setPositiveButton("На стол",null).setNeutralButton("Об игре",(d,w)->handler.post(this::about)).create());
     }
         void about() {
         showDialog(new AlertDialog.Builder(this).setTitle("Словобой · "+BuildConfig.VERSION_NAME)
@@ -146,10 +150,8 @@ public final class MainActivity extends Activity {
             .setPositiveButton("Закрыть",null).create());
     }
     void pause() {
-        showDialog(new AlertDialog.Builder(this).setTitle(String.format(java.util.Locale.ROOT,"Пауза · раунд "+game.round+" · %02d:%02d",(Game.LIMIT-game.elapsed)/60,(Game.LIMIT-game.elapsed)%60))
-            .setMessage("Таймер и соперник остановлены.\n\nСоберите слово целиком: оно сразу нанесёт 1, 3 или 5 урона и заменится новым. На отметке 00:00 — итог раунда. Можно продолжить с теми же HP и фишками.")
-            .setPositiveButton("Продолжить",(d,w)->resumeMatch())
-            .setNeutralButton("Новая дуэль",(d,w)->handler.post(this::restart)).setNegativeButton("Сохранить и выйти",(d,w)->exitGame()).create());
+        showDialog(GameDialog.create(this,"Ⅱ","Пауза", "Уровень "+displayLevel()+" · раунд "+game.round+"\nТаймер и соперник ждут. Слово = удар на 1 / 3 / 5 HP.",
+            new String[]{"Продолжить","Новая дуэль","На главную"},new Runnable[]{this::resumeMatch,()->handler.post(this::restart),this::home}));
     }
     void dealer() {
         String[] labels=new String[6];
@@ -171,12 +173,26 @@ public final class MainActivity extends Activity {
         showDialog(new AlertDialog.Builder(this).setTitle("Карточки соперника").setMessage(s).setPositiveButton("На стол",null).create());
     }
     void restart() {
-        showDialog(new AlertDialog.Builder(this).setTitle("Начать заново?").setMessage("Текущая партия закончится.")
-            .setPositiveButton("Новая дуэль",(d,w)->fresh()).setNegativeButton("Продолжить",null).create());
+        showDialog(GameDialog.create(this,"↻","Начать заново?","Текущая дуэль закончится. Вы останетесь на том же уровне.",new String[]{"Новая дуэль","Продолжить"},new Runnable[]{this::fresh,this::resumeMatch}));
     }
     void nextRound() {
         if(game.continueRound()) {awaitingResume=false;started=true;restartClock();board.clearFeedback();sounds.play(GameAudio.Cue.START);say("Раунд "+game.round+" начался. HP, слова и фишки сохранены.");}
     }
     void exitGame() {save();finish();}
-    void fresh() {game=new Game(System.currentTimeMillis());countdown=new StartCountdown();selected=-1;clearTarget();started=false;awaitingResume=false;message="";messageUntil=0;board.clearFeedback();restartClock();save();board.invalidate();}
+    void fresh() {screen="game";game=new Game(System.currentTimeMillis(),displayLevel(),history());countdown=new StartCountdown();selected=-1;clearTarget();started=false;awaitingResume=false;message="";messageUntil=0;board.clearFeedback();restartClock();save();board.invalidate();}
+
+    int displayLevel(){return game.level==1?1:2;}
+    String levelRules(){return displayLevel()==1?"Уровень 1 · Классика RC3\n36 исходных слов. Раздача раз в 10 секунд во всех раундах.":"Уровень 2 · Открытия RC5\n360 слов, в том числе редкие. Новые слова вероятнее, повторы возможны. Раздача 10/9/8/.../1 с по раундам.";}
+    void home(){save();screen="menu";awaitingResume=started&&game.result==null;selected=-1;clearTarget();board.invalidate();}
+    void showMap(){screen="map";board.invalidate();}
+    void enterLevel(int level){save();game=new Game(System.currentTimeMillis(),level,history());freshPrepared();}
+    private void freshPrepared(){screen="game";countdown=new StartCountdown();started=false;awaitingResume=false;selected=-1;clearTarget();board.clearFeedback();message="";messageUntil=0;save();restartClock();board.invalidate();}
+    void continueSaved(){screen="game";awaitingResume=started&&game.result==null;restartClock();board.invalidate();}
+    boolean won(int level){return campaign.getBoolean("won-"+level,false);}
+    private void recordVictory(){if(game.result!=null&&!game.canContinue()&&game.bot.hp==0)campaign.edit().putBoolean("won-"+displayLevel(),true).apply();}
+    private WordHistory.Profile history(){
+        try{String s=campaign.getString("history","");if(!s.isEmpty())try(java.io.ObjectInputStream in=new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(android.util.Base64.decode(s,0)))){return (WordHistory.Profile)in.readObject();}}catch(Exception ignored){}
+        return new WordHistory.Profile();
+    }
+    private void saveHistory(){try{java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();try(java.io.ObjectOutputStream out=new java.io.ObjectOutputStream(bytes)){out.writeObject(game.vocabulary);}campaign.edit().putString("history",android.util.Base64.encodeToString(bytes.toByteArray(),android.util.Base64.NO_WRAP)).apply();}catch(java.io.IOException ignored){}}
 }

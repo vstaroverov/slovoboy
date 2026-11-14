@@ -8,6 +8,16 @@ public final class Game implements Serializable {
     private static final long serialVersionUID=1L;
     public static final int LIMIT = Rules.MATCH_SECONDS, HAND_LIMIT = Rules.HAND_LIMIT;
     public transient boolean dictionaryUpdatedOnLoad;
+    public int level; // 0: legacy update1 save, 1: exact RC3, 2: RC5
+    public WordHistory.Profile vocabulary;
+    public static final String[][] SETS = {
+        {"МАР-КА", "РУЧ-КА", "КНИ-ГА", "ГА-ЛО-ШИ", "КО-ЧЕР-ГА", "КА-РАН-ДА-ШИ"},
+        {"ВА-ЗА", "Я-МА", "ВА-ТА", "Я-ГО-ДА", "ГО-ЛО-ВА", "ПО-ЗО-ЛО-ТА"},
+        {"ПО-ЛЕ", "ЗО-ЛА", "ПО-РА", "РА-ДУ-ГА", "ГА-ЗЕ-ТА", "ГА-ЗО-ПРО-ВОД"},
+        {"ШИ-ЛО", "КИ-НО", "ШИ-НА", "МА-ШИ-НА", "КА-ЛИ-НА", "ПА-У-ТИ-НА"},
+        {"ЛИ-СА", "ПИ-ЛА", "ЛУ-НА", "МА-ЛИ-НА", "ПО-ЛО-СА", "БА-ЛЕ-РИ-НА"},
+        {"КО-ЗА", "ВО-ДА", "РО-ЗА", "КО-РО-ВА", "ПО-ГО-ДА", "ВО-ДО-ПА-ДЫ"}
+    };
     public static final class Card implements Serializable {
         private static final long serialVersionUID=1L;
         public final String[] parts;
@@ -36,9 +46,12 @@ public final class Game implements Serializable {
     public String event = "Выберите слог в руке, затем свободное место в слове.";
     public String result;
     public String endReason = "";
-    public Game(long seed) {
+    public Game(long seed) {this(seed,0,null);}
+    public Game(long seed,int level,WordHistory.Profile profile) {
+        this.level=level;vocabulary=profile==null?new WordHistory.Profile():profile;
         random = new Random(seed);
-        dealCards(human);dealCards(bot);
+        if(level==1){int first=random.nextInt(SETS.length);for(String w:SETS[first])human.cards.add(new Card(w));for(String w:SETS[(first+1)%SETS.length])bot.cards.add(new Card(w));}
+        else {dealCards(human);dealCards(bot);}
         startHand(human); startHand(bot);
     }
     private static int count(Map<String,Integer> map,String token) { Integer value=map.get(token);return value==null?0:value; }
@@ -49,9 +62,31 @@ public final class Game implements Serializable {
     }
     private void dealCards(Player p) {
         for(int length:new int[]{4,3,3,2,2,2})p.cards.add(selectCard(p,length));
-        Collections.reverse(p.cards);
+        if(level==2){Card a=p.cards.get(0),b=p.cards.get(1),c=p.cards.get(2);p.cards.remove(0);p.cards.remove(0);p.cards.remove(0);p.cards.add(b);p.cards.add(c);p.cards.add(a);}else Collections.reverse(p.cards);
+    }
+    private Card selectRc5Card(Player player,int length) {
+        WordHistory history=player==human?vocabulary.human:vocabulary.bot;
+        ArrayList<Rc5Catalog.Entry> choices=new ArrayList<>();
+        ArrayList<Double> weights=new ArrayList<>();double total=0;
+        for(Rc5Catalog.Entry entry:Rc5Catalog.length(length)) {
+            boolean duplicate=false;HashSet<String> shared=new HashSet<>();
+            for(Card card:player.cards) {
+                if(card.word().equals(entry.word)) {duplicate=true;break;}
+                if(card.parts.length!=length) for(String part:entry.parts)
+                    if(Arrays.asList(card.parts).contains(part)) shared.add(part);
+            }
+            if(duplicate) continue;
+            // Soft preference, never an ordered deck or exclusion of seen words.
+            double weight=history.weight(entry.word)*(1+Math.min(3,shared.size())*2);
+            choices.add(entry);weights.add(weight);total+=weight;
+        }
+        double draw=random.nextDouble()*total;int index=choices.size()-1;
+        for(int i=0;i<choices.size();i++) {draw-=weights.get(i);if(draw<0){index=i;break;}}
+        Rc5Catalog.Entry entry=choices.get(index);history.shown(entry.word);
+        return new Card(entry.split);
     }
     private Card selectCard(Player player,int length) {
+        if(level==2)return selectRc5Card(player,length);
         ArrayList<WordCatalog.Entry> choices=new ArrayList<>();
         ArrayList<Integer> weights=new ArrayList<>();int total=0;
         for(WordCatalog.Entry entry:WordCatalog.length(length)) {
@@ -95,7 +130,16 @@ public final class Game implements Serializable {
         return true;
     }
     private Card freshCard(Player player,int index) {
-        return selectCard(player,player.cards.get(index).parts.length);
+        if(level!=1)return selectCard(player,player.cards.get(index).parts.length);
+        Card old=player.cards.get(index);
+        ArrayList<String> choices=new ArrayList<>();
+        for(String[] set:SETS) for(String word:set) {
+            if(word.split("-").length!=old.parts.length) continue;
+            boolean duplicate=false;
+            for(Card c:player.cards) if(c.word().equals(word.replace("-",""))) duplicate=true;
+            if(!duplicate) choices.add(word);
+        }
+        return new Card(choices.get(random.nextInt(choices.size())));
     }
     private void completeWord(Player attacker,Player defender,int card,boolean isHuman) {
         Card word=attacker.cards.get(card);
@@ -124,7 +168,7 @@ public final class Game implements Serializable {
         }
     }
     public boolean canContinue() {return result!=null && elapsed>=LIMIT && human.hp>0 && bot.hp>0;}
-    public int drawInterval() {return Rules.drawSecondsForRound(round);}
+    public int drawInterval() {return level==1?10:Rules.drawSecondsForRound(round);}
     public int secondsToDraw() {int interval=drawInterval();return interval-elapsed%interval;}
     public boolean continueRound() {
         if(!canContinue()) return false;
@@ -142,7 +186,8 @@ public final class Game implements Serializable {
             if(human.roundWords==0) human.roundWords=human.wordsCompleted;
             if(bot.roundWords==0) bot.roundWords=bot.wordsCompleted;
         }
-        migrateSingleLetters();
+        if(vocabulary==null)vocabulary=new WordHistory.Profile();
+        if(level==0)migrateSingleLetters();
         if(result!=null) resolveEnd();
     }
     private void migrateSingleLetters() {
