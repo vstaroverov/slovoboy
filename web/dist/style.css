@@ -17,3 +17,6 @@ dialog{max-height:calc(100dvh - 24px);max-width:min(400px,calc(100vw - 24px));ov
 .level-up{overflow-x:hidden}
 #viewport{overflow:clip}
 .slot,.tile{font-size:17px}
+
+/* White brand card requested by the owner. */
+.brand{background:#fff;color:#061014;border:1px solid #e8e4f0;border-radius:18px;box-shadow:0 2px 0 #e9e5f0}.brand img{background:transparent}.brand small{color:#79738e}.splash{background:#fff}.splash .brand{border:0;box-shadow:none}

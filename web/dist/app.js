@@ -1,5 +1,5 @@
-import {Game} from './engine.js?v=109';
-import {Progression} from './progression.js?v=109';
+import {Game} from './engine.js?v=110';
+import {Progression} from './progression.js?v=110';
 const app=document.querySelector('#app'),modal=document.querySelector('#modal');
 const {words,sets}=await fetch('words.json').then(r=>{if(!r.ok)throw Error('Словарь недоступен');return r.json()}).catch(()=>{app.innerHTML='<div class="exit"><h2>Не удалось загрузить словарь</h2><p>Проверьте соединение и обновите страницу.</p></div>';throw Error('Dictionary unavailable')});
 const load=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}},store=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v))}catch{}};
@@ -13,7 +13,7 @@ let sound=load('slovoboy-sound',true),wins=load('slovoboy-wins',{}),history=load
 try{let saved=load('slovoboy-match',null);if(saved&&saved.game&&[1,2].includes(saved.game.level)){game=Game.restore(saved.game,words,sets);started=saved.started;countdown=saved.countdown??2}}catch{game=null}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(text,action,primary=true)=>`<button class="${primary?'primary':'secondary'}" data-action="${action}">${text}</button>`;
-const brand=()=>'<div class="brand"><img src="icon.svg?v=109" alt="Знак V-Star Games"><strong>V-STAR GAMES</strong><small>by V-STAR Group</small></div>';
+const brand=()=>'<div class="brand"><img src="brand-mark.svg?v=110" alt="Знак V-Star Games"><strong>V-STAR GAMES</strong><small>by V-STAR Group</small></div>';
 const soundButton=()=>`<div class="sound-control"><button class="sound" data-action="sound" aria-pressed="${sound}">Звук: ${sound?'вкл':'выкл'}</button><label><span>Громкость <output>${volume}%</output></span><input type="range" min="0" max="100" step="1" value="${volume}" aria-label="Громкость звука" data-volume></label></div>`;
 const time=()=>`${Math.floor((90-game.elapsed)/60).toString().padStart(2,'0')}:${((90-game.elapsed)%60).toString().padStart(2,'0')}`;
 const names=['select','place','remove','error','draw','exchange','dealer','start','hit','bot_hit','round','win','lose'];

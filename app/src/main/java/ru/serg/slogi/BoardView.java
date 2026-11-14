@@ -158,12 +158,12 @@ final class BoardView extends View {
     }
     private final Typeface brandFont=Typeface.create(Typeface.createFromAsset(getContext().getAssets(),"fonts/Manrope-variable.ttf"),Typeface.BOLD);
     private void brand(float y,boolean dark) {
-        box(42,y-80,348,232,0xff061014,8);
+        box(42,y-80,348,232,WHITE,20);
         Path mark=new Path();float[] points={54,15,64,39,90,42,70,60,76,87,54,73,32,87,38,60,18,42,44,39};
-        canvas.save();canvas.translate(162,y-54);for(int i=0;i<points.length;i+=2){if(i==0)mark.moveTo(points[i],points[i+1]);else mark.lineTo(points[i],points[i+1]);}mark.close();p.setColor(0xffd8ff18);canvas.drawPath(mark,p);
-        Path cut=new Path();cut.moveTo(38,45);cut.lineTo(54,64);cut.lineTo(70,45);cut.lineTo(65,41);cut.lineTo(54,54);cut.lineTo(43,41);cut.close();p.setColor(0xff061014);canvas.drawPath(cut,p);canvas.restore();
-        p.setTypeface(brandFont);p.setTextSize(24);p.setColor(0xfff6fbff);canvas.drawText("V-STAR GAMES",216-p.measureText("V-STAR GAMES")/2,y+80,p);
-        center("by V-STAR Group",216,y+109,11,0xff9eb1b8,false);
+        canvas.save();canvas.translate(162,y-54);for(int i=0;i<points.length;i+=2){if(i==0)mark.moveTo(points[i],points[i+1]);else mark.lineTo(points[i],points[i+1]);}mark.close();p.setColor(0xff061014);canvas.drawPath(mark,p);
+        Path cut=new Path();cut.moveTo(38,45);cut.lineTo(54,64);cut.lineTo(70,45);cut.lineTo(65,41);cut.lineTo(54,54);cut.lineTo(43,41);cut.close();p.setColor(0xffd8ff18);canvas.drawPath(cut,p);canvas.restore();
+        p.setTypeface(brandFont);p.setTextSize(24);p.setColor(0xff061014);canvas.drawText("V-STAR GAMES",216-p.measureText("V-STAR GAMES")/2,y+80,p);
+        center("by V-STAR Group",216,y+109,11,MUTED,false);
     }
     private void playerProgress(){
         Progression profile=a.progression;box(20,4,392,45,WHITE,12);
@@ -173,7 +173,7 @@ final class BoardView extends View {
     }
     private void shell(){
         hits.clear();
-        if(a.screen.equals("splash")){box(0,0,W,H,0xff061014,0);brand(345,true);return;}
+        if(a.screen.equals("splash")){box(0,0,W,H,WHITE,0);brand(345,true);return;}
         if(a.screen.equals("menu")){
             brand(140,false);center("СЛОВОБОЙ",216,355,42,INK,true);
             center("Каждое слово — твой удар",216,389,16,MUTED,false);
