@@ -11,11 +11,11 @@ const word=c=>c.parts.join(''),freq=(a,s)=>a.filter(x=>x===s).length;
 const player=()=>({cards:[],hand:[],offer:null,lastReceived:null,receivedAt:-100,replace:-1,hp:30,wordsCompleted:0,damageDealt:0,roundWords:0,roundDamage:0});
 export class Game {
  constructor(seed,level,catalog,sets,history={human:{seen:{},last:{},draws:0},bot:{seen:{},last:{},draws:0}}){
-  Object.assign(this,{level,catalog,sets,history,random:new Random(seed),human:player(),bot:player(),bag:[],elapsed:0,totalElapsed:0,round:1,result:null,attackId:0,eventId:0,exchangeCount:0,usefulExchangeHuman:0});
+  Object.assign(this,{matchId:globalThis.crypto?.randomUUID?.()??`duel-${Date.now()}-${Math.random()}`,victoryRewarded:false,level,catalog,sets,history,random:new Random(seed),human:player(),bot:player(),bag:[],elapsed:0,totalElapsed:0,round:1,result:null,attackId:0,eventId:0,exchangeCount:0,usefulExchangeHuman:0});
   if(level===1){let first=this.random.int(sets.length);this.human.cards=sets[first].map(card);this.bot.cards=sets[(first+1)%sets.length].map(card)}else for(const p of [this.human,this.bot]){for(const n of [4,3,3,2,2,2])p.cards.push(this.select(p,n));p.cards=[...p.cards.slice(3),p.cards[1],p.cards[2],p.cards[0]]}
   for(const p of [this.human,this.bot]){p.hand.push(...p.cards[this.random.int(3)].parts);this.draw(p,6-p.hand.length)}
  }
- static restore(data,catalog,sets){let g=Object.assign(Object.create(Game.prototype),data);g.catalog=catalog;g.sets=sets;g.random=Object.assign(Object.create(Random.prototype),{seed:BigInt(data.random.seed)});return g}
+ static restore(data,catalog,sets){let g=Object.assign(Object.create(Game.prototype),data);g.matchId??=globalThis.crypto?.randomUUID?.()??`legacy-${Date.now()}-${Math.random()}`;g.catalog=catalog;g.sets=sets;g.random=Object.assign(Object.create(Random.prototype),{seed:BigInt(data.random.seed)});return g}
  serialize(){return JSON.stringify(this,(k,v)=>typeof v==='bigint'?v.toString():k==='catalog'||k==='sets'?undefined:v)}
  select(p,n){
   let all=this.level===1?this.sets.flat():this.catalog;

@@ -8,6 +8,8 @@ public final class Game implements Serializable {
     private static final long serialVersionUID=1L;
     public static final int LIMIT = Rules.MATCH_SECONDS, HAND_LIMIT = Rules.HAND_LIMIT;
     public transient boolean dictionaryUpdatedOnLoad;
+    public String matchId=java.util.UUID.randomUUID().toString();
+    public boolean victoryRewarded;
     public int level; // 0: legacy update1 save, 1: exact RC3, 2: RC5
     public WordHistory.Profile vocabulary;
     public static final String[][] SETS = {
@@ -178,6 +180,7 @@ public final class Game implements Serializable {
     }
     private void readObject(java.io.ObjectInputStream in) throws java.io.IOException,ClassNotFoundException {
         in.defaultReadObject();
+        if(matchId==null)matchId=java.util.UUID.randomUUID().toString();
         if(round<1) round=1;
         if(totalElapsed<elapsed) totalElapsed=elapsed;
         if(round==1) {

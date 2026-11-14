@@ -13,14 +13,14 @@ final class BoardView extends View {
     private final ArrayList<Hit> hits=new ArrayList<>();
     private final ArrayList<Hit> hitPool=new ArrayList<>();
     private final Typeface regular=Typeface.create("sans-serif",Typeface.NORMAL),bold=Typeface.create("sans-serif-medium",Typeface.NORMAL);
-    private float scale=1,ox,oy;
+    private float scale=1,ox,oy,navigationOffset;
     private Canvas canvas;
     private Hit pressed;
     private long downAt,flashUntil,attackUntil;
     private int flashCard=-1, errorCard=-1,errorSlot=-1;
     private long errorUntil;
     private static final int BG=0xfff4f2fa,INK=0xff29243f,MUTED=0xff79738e,PURPLE=0xff7051df,PALE=0xffece6ff,GREEN=0xff23896a,MINT=0xffe0f4eb,WHITE=0xffffffff,LINE=0xffe2deed,ROSE=0xffe07685;
-    private static final float W=432,H=880;
+    private static final float W=432,H=935;
     private static final class Hit {
         RectF box;Runnable tap,hold;String label;
         Hit(RectF r,Runnable t,Runnable h){box=r;tap=t;hold=h;}
@@ -48,6 +48,7 @@ final class BoardView extends View {
     }
     private void hit(float x,float y,float w,float h,Runnable action) {hit(x,y,w,h,action,null);}
     private void hit(float x,float y,float w,float h,Runnable action,Runnable hold) {
+        y+=navigationOffset;
         int index=hits.size();
         if(index==hitPool.size()) hitPool.add(new Hit(new RectF(),null,null));
         Hit hit=hitPool.get(index);hit.box.set(x,y,x+w,y+h);float target=44*getResources().getDisplayMetrics().density/Math.max(0.1f,scale);hit.box.inset(-Math.max(0,target-w)/2,-Math.max(0,target-h)/2);hit.tap=action;hit.hold=hold;hit.label="Игровое действие";hits.add(hit);
@@ -59,6 +60,8 @@ final class BoardView extends View {
         float width=getWidth()-getPaddingLeft()-getPaddingRight(),height=getHeight()-getPaddingTop()-getPaddingBottom();
         scale=Math.min(width/W,height/H);ox=getPaddingLeft()+(width-W*scale)/2;oy=getPaddingTop()+(height-H*scale)/2;
         c.save();c.translate(ox,oy);c.scale(scale,scale);
+        navigationOffset=0;
+        if(!a.screen.equals("splash")){playerProgress();navigationOffset=55;c.translate(0,55);}
         Game g=a.game;String chosen=a.chosen();
         if(!a.screen.equals("game")){shell();c.restore();return;}
         if(a.matching()){matchmaking();c.restore();return;}
@@ -104,10 +107,10 @@ final class BoardView extends View {
         String exchangeLabel=g.human.offer!=null?"Забрать обратно":chosen!=null?"Обменять «"+chosen+"»":"Выберите фишку";
         button(exchangeLabel,223,774,185,53,chosen!=null || g.human.offer!=null,a::exchange);
         text("Правила",25,852,13,PURPLE,true);hit(20,830,85,38,a::rules);label("Правила игры и сведения о приложении");
-        center(a.soundEnabled()?"Звук: вкл":"Звук: выкл",151,852,12,PURPLE,true);hit(108,830,86,38,a::toggleSound);label(a.soundEnabled()?"Звук включён. Выключить звук":"Звук выключен. Включить звук");
+        center(a.soundEnabled()?"Звук: вкл":"Звук: выкл",151,852,12,PURPLE,true);hit(108,830,86,38,a::soundSettings);label("Звук: настройки громкости");
         center(g.human.replace>=0?"Заменить слово ✓":"Заменить слово",309,852,13,PURPLE,true);hit(205,830,207,38,a::dealer);label("Заменить слово: замена по взаимной заявке");
         if(g.result!=null) finish();else if(a.awaitingResume) resumeOverlay();
-        if(g.result!=null || a.awaitingResume)button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,790,172,44,false,a::toggleSound);
+        if(g.result!=null || a.awaitingResume)button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,790,172,44,false,a::soundSettings);
         c.restore();
     }
     private void health(float x,float y,String label,int hp,int score,int accent) {
@@ -141,7 +144,7 @@ final class BoardView extends View {
         center("Собирайте слова и наносите урон",216,552,15,INK,true);
         center("Выбирайте фишку и слот в любом порядке",216,580,12,MUTED,false);
         center("Офлайн-дуэль · раунды по "+Rules.DURATION,216,655,13,MUTED,false);
-        button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,690,172,44,false,a::toggleSound);
+        button(a.soundEnabled()?"Звук: вкл":"Звук: выкл",130,690,172,44,false,a::soundSettings);
     }
         private void resumeOverlay() {
         veil();box(34,294,364,254,WHITE,28);
@@ -153,14 +156,24 @@ final class BoardView extends View {
     private void star(float x,float y,float radius,int color) {
         Path shape=new Path();for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float r=i%2==0?radius:radius*.46f;float px=x+(float)Math.cos(angle)*r,py=y+(float)Math.sin(angle)*r;if(i==0)shape.moveTo(px,py);else shape.lineTo(px,py);}shape.close();p.setColor(color);canvas.drawPath(shape,p);
     }
+    private final Typeface brandFont=Typeface.create(Typeface.createFromAsset(getContext().getAssets(),"fonts/Manrope-variable.ttf"),Typeface.BOLD);
     private void brand(float y,boolean dark) {
-        star(216,y,53,0xffffcc66);p.setColor(dark?0xff242039:PURPLE);p.setStrokeWidth(7);p.setStrokeCap(Paint.Cap.ROUND);canvas.drawLine(198,y-7,216,y+15,p);canvas.drawLine(216,y+15,234,y-7,p);p.setStrokeCap(Paint.Cap.BUTT);
-        center("V-STAR GAMES",216,y+91,22,dark?WHITE:INK,true);
-        center("ИГРАЙ. ДУМАЙ. ПОБЕЖДАЙ.",216,y+116,10,dark?0xffbdb2df:MUTED,true);
+        box(42,y-80,348,232,0xff061014,8);
+        Path mark=new Path();float[] points={54,15,64,39,90,42,70,60,76,87,54,73,32,87,38,60,18,42,44,39};
+        canvas.save();canvas.translate(162,y-54);for(int i=0;i<points.length;i+=2){if(i==0)mark.moveTo(points[i],points[i+1]);else mark.lineTo(points[i],points[i+1]);}mark.close();p.setColor(0xffd8ff18);canvas.drawPath(mark,p);
+        Path cut=new Path();cut.moveTo(38,45);cut.lineTo(54,64);cut.lineTo(70,45);cut.lineTo(65,41);cut.lineTo(54,54);cut.lineTo(43,41);cut.close();p.setColor(0xff061014);canvas.drawPath(cut,p);canvas.restore();
+        p.setTypeface(brandFont);p.setTextSize(24);p.setColor(0xfff6fbff);canvas.drawText("V-STAR GAMES",216-p.measureText("V-STAR GAMES")/2,y+80,p);
+        center("by V-STAR Group",216,y+109,11,0xff9eb1b8,false);
+    }
+    private void playerProgress(){
+        Progression profile=a.progression;box(20,4,392,45,WHITE,12);
+        text("Уровень игрока "+profile.level(),32,23,12,INK,true);
+        text(profile.xpInLevel()+" / "+profile.xpNeeded()+" XP",273,23,11,PURPLE,true);
+        box(32,33,368,5,PALE,3);float fill=368f*profile.xpInLevel()/profile.xpNeeded();if(fill>0)box(32,33,fill,5,PURPLE,3);
     }
     private void shell(){
         hits.clear();
-        if(a.screen.equals("splash")){box(0,0,W,H,0xff242039,0);brand(345,true);return;}
+        if(a.screen.equals("splash")){box(0,0,W,H,0xff061014,0);brand(345,true);return;}
         if(a.screen.equals("menu")){
             brand(140,false);center("СЛОВОБОЙ",216,355,42,INK,true);
             center("Каждое слово — твой удар",216,389,16,MUTED,false);
@@ -170,7 +183,7 @@ final class BoardView extends View {
             button("Начать играть",42,546,348,60,true,a::showMap);
             if(a.started)button("Продолжить дуэль",42,620,348,52,false,a::continueSaved);
             button("Выход",42,696,348,52,false,a::exitGame);
-            center("Звук: "+(a.soundEnabled()?"включён":"выключен"),216,799,14,PURPLE,true);hit(120,773,192,44,a::toggleSound);label("Переключить звук");
+            center("Звук: "+(a.soundEnabled()?"включён":"выключен"),216,799,14,PURPLE,true);hit(120,773,192,44,a::soundSettings);label("Звук: настройки громкости");
             return;
         }
         text("Карта уровней",24,60,29,INK,true);text("Выберите свой следующий вызов",24,92,14,MUTED,false);
@@ -198,7 +211,7 @@ final class BoardView extends View {
     private void finish() {
         Game g=a.game;boolean next=g.canContinue(),win=g.bot.hp==0;
         veil();box(24,next?224:88,384,next?443:666,WHITE,28);
-        if(!next){resultArt(win);center(win?"Вы победили!":"Вы проиграли",216,333,33,win?GREEN:INK,true);center((win?"Победа":"Поражение")+" в "+g.round+" раунде!",216,369,19,win?PURPLE:MUTED,true);center(win?"Отличная игра. Слова — ваша сила!":"Новая дуэль — новый шанс на победу",216,403,13,MUTED,false);}
+        if(!next){resultArt(win);center(win?"Вы победили!":"Вы проиграли",216,333,33,win?GREEN:INK,true);center((win?"Победа":"Поражение")+" в "+g.round+" раунде!",216,369,19,win?PURPLE:MUTED,true);center(win?"+100 XP · Отличная игра!":"Новая дуэль — новый шанс на победу",216,403,13,MUTED,false);}
         else {center(g.result,216,275,26,PURPLE,true);center("Раунд завершён. Дуэль продолжается",216,311,13,MUTED,false);}
         float y=next?359:458;
         box(48,y-25,336,99,BG,18);center("Здоровье   "+g.human.hp+" : "+g.bot.hp,216,y+6,22,INK,true);

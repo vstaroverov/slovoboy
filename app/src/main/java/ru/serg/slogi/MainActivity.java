@@ -6,6 +6,8 @@ import android.view.*;
 
 public final class MainActivity extends Activity {
     Game game;
+    Progression progression;
+    private android.content.SharedPreferences progressPreferences;
     String screen="splash";
     private android.content.SharedPreferences campaign;
     StartCountdown countdown;
@@ -41,6 +43,8 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         campaign=getSharedPreferences("campaign",MODE_PRIVATE);
+        progressPreferences=getSharedPreferences("player-progression",MODE_PRIVATE);
+        progression=new Progression(progressPreferences.getInt("wins",0),progressPreferences.getString("last-victory",""));
         sounds=new SoundEffects(this);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
                 store=new SessionStore(this);
@@ -70,9 +74,9 @@ public final class MainActivity extends Activity {
             return insets;
         });
         board.requestApplyInsets();
-        handler.postDelayed(()->{if(screen.equals("splash")){screen="menu";board.invalidate();}},1400);
+        handler.postDelayed(()->{if(screen.equals("splash")){screen="menu";board.invalidate();maybeLevelUp();}},1400);
     }
-    @Override public void onResume() {super.onResume();foreground=true;sounds.setActive(true);restartClock();}
+    @Override public void onResume() {super.onResume();foreground=true;sounds.setActive(true);restartClock();handler.postDelayed(this::maybeLevelUp,1600);}
     @Override public void onPause() {foreground=false;sounds.setActive(false);handler.removeCallbacks(clock);awaitingResume=started && game.result==null;save();super.onPause();}
     @Override public void onDestroy() {handler.removeCallbacks(clock);if(currentDialog!=null)currentDialog.dismiss();sounds.close();super.onDestroy();}
     @Override public void onSaveInstanceState(Bundle b) {b.putSerializable("game",game);b.putSerializable("countdown",countdown);b.putBoolean("started",started);b.putInt("selected",selected);b.putInt("targetCard",targetCard);b.putInt("targetSlot",targetSlot);b.putString("targetWord",targetWord);super.onSaveInstanceState(b);}
@@ -138,7 +142,7 @@ public final class MainActivity extends Activity {
     }
     void showDialog(Dialog d) {
         currentDialog=d;dialogOpen=true;save();
-        d.setOnDismissListener(v->{if(currentDialog==d){currentDialog=null;dialogOpen=false;if(!awaitingResume)restartClock();}board.invalidate();});d.show();
+        d.setOnDismissListener(v->{if(currentDialog==d){currentDialog=null;dialogOpen=false;if(!awaitingResume)restartClock();handler.post(this::maybeLevelUp);}board.invalidate();});d.show();
     }
     void rules() {
         showDialog(new AlertDialog.Builder(this).setTitle(Rules.VERSION)
@@ -189,7 +193,28 @@ public final class MainActivity extends Activity {
     private void freshPrepared(){screen="game";countdown=new StartCountdown();started=false;awaitingResume=false;selected=-1;clearTarget();board.clearFeedback();message="";messageUntil=0;save();restartClock();board.invalidate();}
     void continueSaved(){screen="game";awaitingResume=started&&game.result==null;restartClock();board.invalidate();}
     boolean won(int level){return campaign.getBoolean("won-"+level,false);}
-    private void recordVictory(){if(game.result!=null&&!game.canContinue()&&game.bot.hp==0)campaign.edit().putBoolean("won-"+displayLevel(),true).apply();}
+    private void recordVictory(){
+        if(game.result==null||game.canContinue()||game.bot.hp!=0)return;
+        campaign.edit().putBoolean("won-"+displayLevel(),true).apply();
+        if(game.victoryRewarded)return;
+        int previous=progression.level();
+        if(progression.reward(game.matchId)){
+            android.content.SharedPreferences.Editor editor=progressPreferences.edit().putInt("wins",progression.victories).putString("last-victory",progression.lastVictory);
+            if(progression.level()>previous)editor.putInt("pending-level",progression.level());
+            if(!editor.commit()){progression=new Progression(progressPreferences.getInt("wins",0),progressPreferences.getString("last-victory",""));return;}
+        }
+        game.victoryRewarded=true;save();handler.postDelayed(this::maybeLevelUp,850);
+    }
+    private void maybeLevelUp(){
+        int level=progressPreferences.getInt("pending-level",0);
+        if(level<=0||!foreground||dialogOpen||screen.equals("splash"))return;
+        showDialog(GameDialog.create(this,"★","Новый уровень!","Поздравляем! Уровень игрока "+level+".\n+100 XP за победу.\nПобед до следующего уровня: "+(level+1)+".",new String[]{"Отлично!"},new Runnable[]{()->{}}));
+        progressPreferences.edit().remove("pending-level").apply();sounds.play(GameAudio.Cue.START);
+    }
+    int soundVolume(){return sounds.volume();}
+    void setSoundVolume(int value){sounds.setVolume(value);}
+    void previewSound(){sounds.play(GameAudio.Cue.SELECT);}
+    void soundSettings(){showDialog(SoundSettingsDialog.create(this));}
     private WordHistory.Profile history(){
         try{String s=campaign.getString("history","");if(!s.isEmpty())try(java.io.ObjectInputStream in=new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(android.util.Base64.decode(s,0)))){return (WordHistory.Profile)in.readObject();}}catch(Exception ignored){}
         return new WordHistory.Profile();
