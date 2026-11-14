@@ -2,3 +2,4 @@
 -keep class ru.serg.slogi.Game { *; }
 -keep class ru.serg.slogi.Game$* { *; }
 -keep class ru.serg.slogi.SessionStore$State { *; }
+-keep class ru.serg.slogi.StartCountdown { *; }

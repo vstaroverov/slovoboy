@@ -1,0 +1,2 @@
+n=500 pace=2 finalWins=48.2 finalLosses=51.8 meanGameSeconds=315.8 meanRounds=4.00 maxRound=5 exchanges=31.69 useful=48.4 noHandOverflow=true
+n=500 pace=3 finalWins=47.4 finalLosses=52.6 meanGameSeconds=317.3 meanRounds=4.01 maxRound=5 exchanges=30.40 useful=50.6 noHandOverflow=true

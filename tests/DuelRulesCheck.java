@@ -106,19 +106,14 @@ public class DuelRulesCheck {
         while(cooldown.elapsed<Rules.EXCHANGE_HOLD_SECONDS) cooldown.tick();
         check("НЕСЛОГ".equals(cooldown.bot.offer),"Cooldown ends; useless token may be offered again");
                 java.util.HashSet<String> dictionary=new java.util.HashSet<>();
-        for(String[] group:Game.SETS) {
-            check(group.length==6,"Six words per group");
-            for(int i=0;i<group.length;i++) {
-                String[] parts=group[i].split("-");int expected=i<3?2:i<5?3:4;
-                check(parts.length==expected,"Dictionary layer lengths");
-                check(dictionary.add(group[i].replace("-","")),"Dictionary contains no duplicate word");
-                for(String part:parts) {
-                    int vowels=0;for(char ch:part.toCharArray()) if("АЕЁИОУЫЭЮЯ".indexOf(ch)>=0) vowels++;
-                    check(vowels==1,"One vowel per syllable fragment");
-                }
+        for(ru.serg.slogi.WordCatalog.Entry entry:ru.serg.slogi.WordCatalog.all()) {
+            check(dictionary.add(entry.word),"No duplicate dictionary word");
+            for(String part:entry.parts) {
+                int vowels=0;for(char ch:part.toCharArray())if("АЕЁИОУЫЭЮЯ".indexOf(ch)>=0)vowels++;
+                check(vowels==1 && part.length()>=2,"Multi-letter syllable fragments");
             }
         }
-        check(dictionary.size()==36,"Release dictionary has 36 words");
+        check(dictionary.size()==327,"Expanded dictionary has 327 eligible words");
         try {
             Game original=new Game(99);original.tick();
             java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();

@@ -6,15 +6,8 @@ import java.util.*;
 /** All hidden state stays here; the UI renders only opponent cards and health. */
 public final class Game implements Serializable {
     private static final long serialVersionUID=1L;
-    public static final int LIMIT = Rules.MATCH_SECONDS, HAND_LIMIT = Rules.HAND_LIMIT, DRAW_EVERY = Rules.DRAW_SECONDS;
-    public static final String[][] SETS = {
-        {"МАР-КА", "РУЧ-КА", "КНИ-ГА", "ГА-ЛО-ШИ", "КО-ЧЕР-ГА", "КА-РАН-ДА-ШИ"},
-        {"ВА-ЗА", "Я-МА", "ВА-ТА", "Я-ГО-ДА", "ГО-ЛО-ВА", "ПО-ЗО-ЛО-ТА"},
-        {"ПО-ЛЕ", "ЗО-ЛА", "ПО-РА", "РА-ДУ-ГА", "ГА-ЗЕ-ТА", "ГА-ЗО-ПРО-ВОД"},
-        {"ШИ-ЛО", "КИ-НО", "ШИ-НА", "МА-ШИ-НА", "КА-ЛИ-НА", "ПА-У-ТИ-НА"},
-        {"ЛИ-СА", "ПИ-ЛА", "ЛУ-НА", "МА-ЛИ-НА", "ПО-ЛО-СА", "БА-ЛЕ-РИ-НА"},
-        {"КО-ЗА", "ВО-ДА", "РО-ЗА", "КО-РО-ВА", "ПО-ГО-ДА", "ВО-ДО-ПА-ДЫ"}
-    };
+    public static final int LIMIT = Rules.MATCH_SECONDS, HAND_LIMIT = Rules.HAND_LIMIT;
+    public transient boolean dictionaryUpdatedOnLoad;
     public static final class Card implements Serializable {
         private static final long serialVersionUID=1L;
         public final String[] parts;
@@ -45,8 +38,7 @@ public final class Game implements Serializable {
     public String endReason = "";
     public Game(long seed) {
         random = new Random(seed);
-        int first = random.nextInt(SETS.length);
-        dealCards(human, first); dealCards(bot, (first+1)%SETS.length);
+        dealCards(human);dealCards(bot);
         startHand(human); startHand(bot);
     }
     private static int count(Map<String,Integer> map,String token) { Integer value=map.get(token);return value==null?0:value; }
@@ -55,7 +47,27 @@ public final class Game implements Serializable {
         Collections.addAll(p.hand,opening.parts);
         draw(p,Rules.START_HAND-p.hand.size());
     }
-    private void dealCards(Player p,int set) { for(String w:SETS[set]) p.cards.add(new Card(w)); }
+    private void dealCards(Player p) {
+        for(int length:new int[]{4,3,3,2,2,2})p.cards.add(selectCard(p,length));
+        Collections.reverse(p.cards);
+    }
+    private Card selectCard(Player player,int length) {
+        ArrayList<WordCatalog.Entry> choices=new ArrayList<>();
+        ArrayList<Integer> weights=new ArrayList<>();int total=0;
+        for(WordCatalog.Entry entry:WordCatalog.length(length)) {
+            boolean duplicate=false;HashSet<String> shared=new HashSet<>();
+            for(Card c:player.cards) {
+                if(c.word().equals(entry.word)){duplicate=true;break;}
+                if(c.parts.length!=length)for(String part:entry.parts)
+                    if(Arrays.asList(c.parts).contains(part))shared.add(part);
+            }
+            if(duplicate)continue;
+            int weight=1+2*Math.min(3,shared.size());choices.add(entry);weights.add(weight);total+=weight;
+        }
+        int pick=random.nextInt(total),index=choices.size()-1;
+        for(int i=0;i<choices.size();i++){pick-=weights.get(i);if(pick<0){index=i;break;}}
+        return new Card(choices.get(index).split);
+    }
     private String token() {
         if(bag.isEmpty()) {
             // Shared hidden bag: account for filled slots and tokens already owned.
@@ -83,15 +95,7 @@ public final class Game implements Serializable {
         return true;
     }
     private Card freshCard(Player player,int index) {
-        Card old=player.cards.get(index);
-        ArrayList<String> choices=new ArrayList<>();
-        for(String[] set:SETS) for(String word:set) {
-            if(word.split("-").length!=old.parts.length) continue;
-            boolean duplicate=false;
-            for(Card c:player.cards) if(c.word().equals(word.replace("-",""))) duplicate=true;
-            if(!duplicate) choices.add(word);
-        }
-        return new Card(choices.get(random.nextInt(choices.size())));
+        return selectCard(player,player.cards.get(index).parts.length);
     }
     private void completeWord(Player attacker,Player defender,int card,boolean isHuman) {
         Card word=attacker.cards.get(card);
@@ -108,18 +112,20 @@ public final class Game implements Serializable {
         resolveEnd();
     }
     public String attackText() {
-        return (lastAttackHuman?"Вы собрали «":"Бот собрал «")+lastAttackWord+"»: −"+lastAttackDamage+" HP "+(lastAttackHuman?"боту":"вам")+". Новое слово на столе!";
+        return (lastAttackHuman?"Вы собрали «":"Соперник собрал «")+lastAttackWord+"»: −"+lastAttackDamage+" HP "+(lastAttackHuman?"сопернику":"вам")+". Новое слово на столе!";
     }
     private void resolveEnd() {
         if(human.hp==0 || bot.hp==0) {
             result=(bot.hp==0?"Победа":"Поражение")+" в "+round+" раунде!";
-            endReason=human.hp==0?"Ваши HP закончились":"HP бота закончились";
+            endReason=human.hp==0?"Ваши HP закончились":"HP соперника закончились";
         } else if(elapsed>=LIMIT) {
             result="Результат "+round+" раунда!";
             endReason="Время раунда вышло. Прогресс сохранён.";
         }
     }
     public boolean canContinue() {return result!=null && elapsed>=LIMIT && human.hp>0 && bot.hp>0;}
+    public int drawInterval() {return Rules.drawSecondsForRound(round);}
+    public int secondsToDraw() {int interval=drawInterval();return interval-elapsed%interval;}
     public boolean continueRound() {
         if(!canContinue()) return false;
         round++;elapsed=0;result=null;endReason="";
@@ -136,7 +142,30 @@ public final class Game implements Serializable {
             if(human.roundWords==0) human.roundWords=human.wordsCompleted;
             if(bot.roundWords==0) bot.roundWords=bot.wordsCompleted;
         }
+        migrateSingleLetters();
         if(result!=null) resolveEnd();
+    }
+    private void migrateSingleLetters() {
+        boolean changed=false;
+        for(Player p:new Player[]{human,bot}) {
+            changed|=removeSingleLetters(p.hand);
+            if(p.offer!=null && p.offer.length()<2){p.offer=null;changed=true;}
+            if(p.lastReceived!=null && p.lastReceived.length()<2)p.lastReceived=null;
+            for(int index=0;index<p.cards.size();index++) {
+                Card old=p.cards.get(index);boolean invalid=false;
+                for(String part:old.parts)if(part.length()<2)invalid=true;
+                if(!invalid)continue;
+                for(int s=0;s<old.parts.length;s++)if(old.filled[s] && old.parts[s].length()>=2 && p.hand.size()+(p.offer==null?0:1)<HAND_LIMIT)p.hand.add(old.parts[s]);
+                p.cards.set(index,freshCard(p,index));if(p.replace==index)p.replace=-1;changed=true;
+            }
+        }
+        changed|=removeSingleLetters(bag);
+        if(changed){bag.clear();dictionaryUpdatedOnLoad=true;}
+    }
+    private static boolean removeSingleLetters(ArrayList<String> tokens) {
+        boolean changed=false;Iterator<String> iterator=tokens.iterator();
+        while(iterator.hasNext())if(iterator.next().length()<2){iterator.remove();changed=true;}
+        return changed;
     }
     public void take(int card,int slot) {
         if(result!=null || human.hand.size()+(human.offer==null?0:1)>=HAND_LIMIT) return;
@@ -175,7 +204,7 @@ public final class Game implements Serializable {
             for(int s=0;s<old.parts.length;s++) if(old.filled[s] && p.hand.size()+(p.offer==null?0:1)<HAND_LIMIT) p.hand.add(old.parts[s]);
             p.cards.set(p.replace,freshCard(p,p.replace)); p.replace=-1;
         }
-        bag.clear(); eventId++; event="Крупье заменил по одному слову той же длины. Слоги возвращены в руку, насколько хватило места.";
+        bag.clear(); eventId++; event="Заменено по одному слову той же длины. Слоги возвращены в руку, насколько хватило места.";
     }
     private void botAction() {
         // Bot consults only its own cards and hand. Prefer completing a nearly finished word.
@@ -222,7 +251,7 @@ public final class Game implements Serializable {
         elapsed++;totalElapsed++;
         if(elapsed%Rules.BOT_SECONDS==0) botAction();
         if(result!=null) return;
-        if(elapsed%DRAW_EVERY==0) {draw(human,Rules.DRAW_COUNT);draw(bot,Rules.DRAW_COUNT);}
+        if(elapsed%drawInterval()==0) {draw(human,Rules.DRAW_COUNT);draw(bot,Rules.DRAW_COUNT);}
         resolveEnd();
     }
 }

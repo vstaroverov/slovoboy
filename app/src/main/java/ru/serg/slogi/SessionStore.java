@@ -15,7 +15,8 @@ final class SessionStore {
         final int inputSchema;
         final int targetCard,targetSlot;
         final String targetWord;
-        State(Game g,boolean s,int i,int c,int slot,String word) {inputSchema=2;game=g;started=s;selected=i;targetCard=c;targetSlot=slot;targetWord=word;}
+        final StartCountdown countdown;
+        State(Game g,boolean s,int i,int c,int slot,String word,StartCountdown start) {inputSchema=2;game=g;started=s;selected=i;targetCard=c;targetSlot=slot;targetWord=word;countdown=start;}
     }
     private final AtomicFile file;
     SessionStore(Context context) {file=new AtomicFile(new File(context.getFilesDir(),"match-v1.bin"));}
@@ -31,11 +32,11 @@ final class SessionStore {
         } catch(FileNotFoundException e) {return null;}
         catch(IOException|ClassNotFoundException|ClassCastException e) {file.delete();return null;}
     }
-    boolean save(Game game,boolean started,int selected,int targetCard,int targetSlot,String targetWord) {
+    boolean save(Game game,boolean started,int selected,int targetCard,int targetSlot,String targetWord,StartCountdown countdown) {
         FileOutputStream out=null;
         try {
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
-            try(ObjectOutputStream objects=new ObjectOutputStream(bytes)) {objects.writeObject(new State(game,started,selected,targetCard,targetSlot,targetWord));}
+            try(ObjectOutputStream objects=new ObjectOutputStream(bytes)) {objects.writeObject(new State(game,started,selected,targetCard,targetSlot,targetWord,countdown));}
             out=file.startWrite();out.write(bytes.toByteArray());file.finishWrite(out);return true;
         } catch(IOException e) {if(out!=null)file.failWrite(out);return false;}
     }

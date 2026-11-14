@@ -6,10 +6,12 @@ import android.view.*;
 
 public final class MainActivity extends Activity {
     Game game;
+    StartCountdown countdown;
     BoardView board;
     boolean started, dialogOpen, foreground, awaitingResume;
     private SessionStore store;
     private SoundEffects sounds;
+    private Dialog currentDialog;
     int selected=-1,targetCard=-1,targetSlot=-1;
     String targetWord="";
     String message="";
@@ -17,13 +19,16 @@ public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final Runnable clock=new Runnable() {
         public void run() {
-            if(started && !dialogOpen && !awaitingResume && foreground && game.result==null) {
+            if(matching() && foreground && !dialogOpen) {
+                if(countdown.tick()){beginMatch();return;}
+                save();board.invalidate();board.announceForAccessibility(String.valueOf(countdown.remaining()));
+            } else if(started && !dialogOpen && !awaitingResume && foreground && game.result==null) {
                 int event=game.eventId, attack=game.attackId; int count=game.human.hand.size();
                 GameAudio.Before before=new GameAudio.Before(game);
                 game.tick();
                 sounds.play(GameAudio.changed(before,game));
                 if(attack!=game.attackId) { board.showAttack(); say(game.attackText()); }
-                else if(event!=game.eventId) say(game.event.startsWith("Скрытый")?"Обмен состоялся! Новая фишка уже в руке.":"Крупье заменил слова. Слоги вернулись в руку.");
+                else if(event!=game.eventId) say(game.event.startsWith("Скрытый")?"Обмен состоялся! Новая фишка уже в руке.":"Слова заменены. Слоги вернулись в руку.");
                 else if(game.human.hand.size()>count) say("Новые слоги! Выберите фишку внизу.");
                 if(game.elapsed%5==0 || game.result!=null) save();
                 board.invalidate();
@@ -40,11 +45,14 @@ public final class MainActivity extends Activity {
         game=state!=null?(Game)state.getSerializable("game"):saved!=null?saved.game:new Game(System.currentTimeMillis());
         if(game==null) game=new Game(System.currentTimeMillis());
         started=state!=null?state.getBoolean("started"):saved!=null && saved.started;
+        countdown=state!=null?(StartCountdown)state.getSerializable("countdown"):saved!=null?saved.countdown:null;
+        if(countdown==null)countdown=new StartCountdown();
         selected=state!=null?state.getInt("selected",-1):saved!=null?saved.selected:-1;
                 targetCard=state!=null?state.getInt("targetCard",-1):saved!=null && saved.inputSchema==2?saved.targetCard:-1;
         targetSlot=state!=null?state.getInt("targetSlot",-1):saved!=null && saved.inputSchema==2?saved.targetSlot:-1;
         targetWord=state!=null?state.getString("targetWord",""):saved!=null && saved.inputSchema==2?saved.targetWord:"";
         if(targetWord==null) targetWord="";
+        if(game.dictionaryUpdatedOnLoad){selected=-1;clearTarget();}
         awaitingResume=started && game.result==null;
         getWindow().setStatusBarColor(0xfff4f2fa);
         getWindow().setNavigationBarColor(0xfff4f2fa);
@@ -60,14 +68,15 @@ public final class MainActivity extends Activity {
         });
         board.requestApplyInsets();
     }
-    @Override public void onResume() {super.onResume();foreground=true;sounds.setActive(true);handler.postDelayed(clock,1000);}
+    @Override public void onResume() {super.onResume();foreground=true;sounds.setActive(true);restartClock();}
     @Override public void onPause() {foreground=false;sounds.setActive(false);handler.removeCallbacks(clock);awaitingResume=started && game.result==null;save();super.onPause();}
-    @Override public void onDestroy() {handler.removeCallbacks(clock);sounds.close();super.onDestroy();}
-    @Override public void onSaveInstanceState(Bundle b) {b.putSerializable("game",game);b.putBoolean("started",started);b.putInt("selected",selected);b.putInt("targetCard",targetCard);b.putInt("targetSlot",targetSlot);b.putString("targetWord",targetWord);super.onSaveInstanceState(b);}
-        void save() {if(store!=null && game!=null) store.save(game,started,selected,targetCard,targetSlot,targetWord);}
+    @Override public void onDestroy() {handler.removeCallbacks(clock);if(currentDialog!=null)currentDialog.dismiss();sounds.close();super.onDestroy();}
+    @Override public void onSaveInstanceState(Bundle b) {b.putSerializable("game",game);b.putSerializable("countdown",countdown);b.putBoolean("started",started);b.putInt("selected",selected);b.putInt("targetCard",targetCard);b.putInt("targetSlot",targetSlot);b.putString("targetWord",targetWord);super.onSaveInstanceState(b);}
+        void save() {if(store!=null && game!=null) store.save(game,started,selected,targetCard,targetSlot,targetWord,countdown);}
+    boolean matching() {return !started && game.result==null;}
         private void restartClock() {handler.removeCallbacks(clock);if(foreground)handler.postDelayed(clock,1000);}
-    void beginMatch() {started=true;awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.START);say("Выберите фишку, затем слот с таким же слогом.");}
-    void resumeMatch() {awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.SELECT);save();board.invalidate();}
+    void beginMatch() {started=true;awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.START);say("Выберите фишку и слот — в любом порядке.");}
+    void resumeMatch() {awaitingResume=false;restartClock();sounds.play(GameAudio.Cue.SELECT);if(game.dictionaryUpdatedOnLoad){game.dictionaryUpdatedOnLoad=false;say("Слова с одиночными буквами заменены. Подходящие фишки возвращены в руку.");}save();board.invalidate();}
     boolean soundEnabled() {return sounds.enabled();}
     void toggleSound() {sounds.setEnabled(!sounds.enabled());if(sounds.enabled())sounds.play(GameAudio.Cue.SELECT);board.invalidate();board.announceForAccessibility(sounds.enabled()?"Звук включён":"Звук выключен");}
     private void changedSound(GameAudio.Before before,GameAudio.Cue fallback) {GameAudio.Cue cue=GameAudio.changed(before,game);sounds.play(cue==null?fallback:cue);}
@@ -116,15 +125,16 @@ public final class MainActivity extends Activity {
         board.invalidate();
     }
     void exchange() {
-        if(game.human.offer==null && chosen()==null) {sounds.play(GameAudio.Cue.ERROR);say("Выберите фишку в руке, чтобы предложить её боту.");return;}
+        if(game.human.offer==null && chosen()==null) {sounds.play(GameAudio.Cue.ERROR);say("Выберите фишку в руке, чтобы предложить её сопернику.");return;}
         boolean cancel=game.human.offer!=null;
         GameAudio.Before before=new GameAudio.Before(game);
         game.offer(selected);selected=-1;
         if(cancel)sounds.play(GameAudio.Cue.REMOVE);else changedSound(before,GameAudio.Cue.SELECT);
-        say(cancel?"Предложение отменено. Фишка снова в руке.":game.human.offer==null?"Обмен состоялся! Посмотрите новую фишку в руке.":"Предложение скрыто от бота. Ждём его фишку.");
+        say(cancel?"Предложение отменено. Фишка снова в руке.":game.human.offer==null?"Обмен состоялся! Посмотрите новую фишку в руке.":"Предложение скрыто от соперника. Ждём его фишку.");
     }
-    void showDialog(AlertDialog d) {
-        dialogOpen=true;d.setOnDismissListener(v->{dialogOpen=false;if(!awaitingResume)restartClock();board.invalidate();});d.show();
+    void showDialog(Dialog d) {
+        currentDialog=d;dialogOpen=true;save();
+        d.setOnDismissListener(v->{if(currentDialog==d){currentDialog=null;dialogOpen=false;if(!awaitingResume)restartClock();}board.invalidate();});d.show();
     }
     void rules() {
         showDialog(new AlertDialog.Builder(this).setTitle(Rules.VERSION)
@@ -137,9 +147,9 @@ public final class MainActivity extends Activity {
     }
     void pause() {
         showDialog(new AlertDialog.Builder(this).setTitle(String.format(java.util.Locale.ROOT,"Пауза · раунд "+game.round+" · %02d:%02d",(Game.LIMIT-game.elapsed)/60,(Game.LIMIT-game.elapsed)%60))
-            .setMessage("Таймер и бот остановлены.\n\nСоберите слово целиком: оно сразу нанесёт 1, 3 или 5 урона и заменится новым. На отметке 00:00 — итог раунда. Можно продолжить с теми же HP и фишками.")
+            .setMessage("Таймер и соперник остановлены.\n\nСоберите слово целиком: оно сразу нанесёт 1, 3 или 5 урона и заменится новым. На отметке 00:00 — итог раунда. Можно продолжить с теми же HP и фишками.")
             .setPositiveButton("Продолжить",(d,w)->resumeMatch())
-            .setNeutralButton("Все правила",(d,w)->handler.post(this::rules)).setNegativeButton("Сохранить и выйти",(d,w)->exitGame()).create());
+            .setNeutralButton("Новая дуэль",(d,w)->handler.post(this::restart)).setNegativeButton("Сохранить и выйти",(d,w)->exitGame()).create());
     }
     void dealer() {
         String[] labels=new String[6];
@@ -147,18 +157,16 @@ public final class MainActivity extends Activity {
         // Delay opening the next dialog until the list dialog has dismissed.
         showDialog(new AlertDialog.Builder(this).setTitle("Какое слово заменить?")
             .setItems(labels,(d,i)->handler.post(()->{
-                showDialog(new AlertDialog.Builder(this).setTitle(labels[i]).setMessage("Замена произойдёт, когда бот тоже подаст заявку. Новое слово будет той же длины. Выложенные слоги вернутся в руку до лимита; лишние сбросятся. Повторный выбор отменяет заявку.")
-                    .setPositiveButton(game.human.replace==i?"Отменить заявку":"Предложить замену",(a,b)->{GameAudio.Before before=new GameAudio.Before(game);game.requestCard(i);changedSound(before,GameAudio.Cue.SELECT);selected=-1;say(game.human.replace>=0?"Заявка крупье принята. Ждём решения бота.":"Заявка обработана.");})
+                showDialog(new AlertDialog.Builder(this).setTitle(labels[i]).setMessage("Замена произойдёт, когда соперник тоже подаст заявку. Новое слово будет той же длины. Выложенные слоги вернутся в руку до лимита; лишние сбросятся. Повторный выбор отменяет заявку.")
+                    .setPositiveButton(game.human.replace==i?"Отменить заявку":"Предложить замену",(a,b)->{GameAudio.Before before=new GameAudio.Before(game);game.requestCard(i);changedSound(before,GameAudio.Cue.SELECT);selected=-1;say(game.human.replace>=0?"Запрос на замену принят. Ждём решения соперника.":"Заявка обработана.");})
                     .setNegativeButton("Назад",null).create());
             })).setNegativeButton("Закрыть",null).create());
     }
     void discard(int index) {
-        showDialog(new AlertDialog.Builder(this).setTitle("Сбросить «"+game.human.hand.get(index)+"»?")
-            .setMessage("Фишка исчезнет из руки. Можно попробовать обменять её на полезную.")
-            .setPositiveButton("Сбросить",(d,w)->{game.discard(index);sounds.play(GameAudio.Cue.REMOVE);selected=-1;say("Место в руке освобождено.");}).setNegativeButton("Оставить",null).create());
+        showDialog(DiscardDialog.create(this,game.human.hand.get(index),()->{game.discard(index);sounds.play(GameAudio.Cue.REMOVE);selected=-1;say("Место в руке освобождено.");}));
     }
     void opponent() {
-        StringBuilder s=new StringBuilder("Видно только заполнение слов. Рука и предложение бота скрыты.\n\n");
+        StringBuilder s=new StringBuilder("Видно только заполнение слов. Рука и предложение соперника скрыты.\n\n");
         for(Game.Card c:game.bot.cards) {s.append(c.word()).append("  ");for(boolean b:c.filled) s.append(b?"●":"○");s.append("\n\n");}
         showDialog(new AlertDialog.Builder(this).setTitle("Карточки соперника").setMessage(s).setPositiveButton("На стол",null).create());
     }
@@ -170,5 +178,5 @@ public final class MainActivity extends Activity {
         if(game.continueRound()) {awaitingResume=false;started=true;restartClock();board.clearFeedback();sounds.play(GameAudio.Cue.START);say("Раунд "+game.round+" начался. HP, слова и фишки сохранены.");}
     }
     void exitGame() {save();finish();}
-    void fresh() {game=new Game(System.currentTimeMillis());selected=-1;clearTarget();started=false;awaitingResume=false;message="";messageUntil=0;board.clearFeedback();save();board.invalidate();}
+    void fresh() {game=new Game(System.currentTimeMillis());countdown=new StartCountdown();selected=-1;clearTarget();started=false;awaitingResume=false;message="";messageUntil=0;board.clearFeedback();restartClock();save();board.invalidate();}
 }
