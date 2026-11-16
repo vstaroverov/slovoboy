@@ -165,6 +165,12 @@ final class BoardView extends View {
         p.setTypeface(brandFont);p.setTextSize(24);p.setColor(0xff061014);canvas.drawText("V-STAR GAMES",216-p.measureText("V-STAR GAMES")/2,y+80,p);
         center("by V-STAR Group",216,y+109,11,MUTED,false);
     }
+    private final android.graphics.drawable.Drawable footerMark=getContext().getDrawable(R.drawable.ic_launcher);
+    private void brandFooter(float y){
+        footerMark.setBounds(134,(int)y-20,170,(int)y+16);footerMark.draw(canvas);
+        text("V-STAR GAMES",178,y-1,11,MUTED,true);
+        text("by V-STAR Group",178,y+14,10,MUTED,false);
+    }
     private void playerProgress(){
         Progression profile=a.progression;box(20,4,392,45,WHITE,12);
         text("Уровень игрока "+profile.level(),32,23,12,INK,true);
@@ -173,18 +179,18 @@ final class BoardView extends View {
     }
     private void shell(){
         hits.clear();
-        if(a.screen.equals("splash")){box(0,0,W,H,WHITE,0);brand(345,true);return;}
+        if(a.screen.equals("splash")){box(0,0,W,H,WHITE,0);center("СЛОВОБОЙ",216,420,42,INK,true);center("Каждое слово — твой удар",216,457,16,MUTED,false);brandFooter(900);return;}
         if(a.screen.equals("menu")){
-            brand(140,false);center("СЛОВОБОЙ",216,355,42,INK,true);
-            center("Каждое слово — твой удар",216,389,16,MUTED,false);
-            box(72,425,84,68,WHITE,18);center("СЛО",114,469,24,PURPLE,true);
-            box(166,425,84,68,WHITE,18);center("ВО",208,469,24,PURPLE,true);
-            box(260,425,100,68,0xffffcc66,18);center("БОЙ",310,469,24,INK,true);
-            button("Начать играть",42,546,348,60,true,a::showMap);
-            if(a.started)button("Продолжить дуэль",42,620,348,52,false,a::continueSaved);
-            button("Выход",42,696,348,52,false,a::exitGame);
-            center("Звук: "+(a.soundEnabled()?"включён":"выключен"),216,799,14,PURPLE,true);hit(120,773,192,44,a::soundSettings);label("Звук: настройки громкости");
-            return;
+            center("СЛОВОБОЙ",216,215,46,INK,true);
+            center("Каждое слово — твой удар",216,253,16,MUTED,false);
+            box(72,295,84,68,WHITE,18);center("СЛО",114,339,24,PURPLE,true);
+            box(166,295,84,68,WHITE,18);center("ВО",208,339,24,PURPLE,true);
+            box(260,295,100,68,0xffffcc66,18);center("БОЙ",310,339,24,INK,true);
+            button("Начать играть",42,420,348,60,true,a::showMap);
+            if(a.started)button("Продолжить дуэль",42,494,348,52,false,a::continueSaved);
+            button("Выход",42,568,348,52,false,a::exitGame);
+            center("Звук: "+(a.soundEnabled()?"включён":"выключен"),216,700,14,PURPLE,true);hit(120,674,192,44,a::soundSettings);label("Звук: настройки громкости");
+            brandFooter(842);return;
         }
         text("Карта уровней",24,60,29,INK,true);text("Выберите свой следующий вызов",24,92,14,MUTED,false);
         p.setColor(LINE);p.setStrokeWidth(6);canvas.drawLine(110,246,320,473,p);canvas.drawLine(320,473,170,700,p);

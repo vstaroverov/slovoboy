@@ -13,3 +13,5 @@
 - PNG иконки 192/512 находятся в docs/ и web/dist/. В Android — VectorDrawable.
 
 Геометрия задаётся tools/BrandAssets.java; генерация: javac -d build-brand tools/BrandAssets.java; java -cp build-brand BrandAssets . app/src/main/assets/fonts/Manrope-variable.ttf. UI использует те же координаты.
+
+На стартовом экране главным является «Словобой». V-STAR Games / by V-STAR Group — компактная второстепенная подпись со знаком в самом низу. То же подчинение сохранено в начальной заставке и веб-экране подбора соперника.
