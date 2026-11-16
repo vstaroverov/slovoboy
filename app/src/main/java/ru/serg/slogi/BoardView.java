@@ -193,8 +193,8 @@ final class BoardView extends View {
         }
         text("Карта уровней",24,60,29,INK,true);text("Выберите свой следующий вызов",24,92,14,MUTED,false);
         p.setColor(LINE);p.setStrokeWidth(6);canvas.drawLine(110,246,320,473,p);canvas.drawLine(320,473,170,700,p);
-        levelNode(1,103,222,"Классика","36 слов","",a.won(1));
-        levelNode(2,316,464,"Открытия","360 слов","",a.won(2));
+        levelNode(1,103,222,"Классика","","",a.won(1));
+        levelNode(2,316,464,"Открытия","","",a.won(2));
         box(101,662,130,64,LINE,26);center("Скоро",166,702,18,MUTED,true);
         center("Новые правила — на следующих уровнях",216,763,13,MUTED,false);
         button("На главную",24,802,384,54,false,a::home);
