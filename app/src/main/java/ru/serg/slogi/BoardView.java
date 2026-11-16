@@ -181,11 +181,10 @@ final class BoardView extends View {
         hits.clear();
         if(a.screen.equals("splash")){box(0,0,W,H,WHITE,0);center("СЛОВОБОЙ",216,420,42,INK,true);center("Каждое слово — твой удар",216,457,16,MUTED,false);brandFooter(900);return;}
         if(a.screen.equals("menu")){
-            center("СЛОВОБОЙ",216,215,46,INK,true);
-            center("Каждое слово — твой удар",216,253,16,MUTED,false);
-            box(72,295,84,68,WHITE,18);center("СЛО",114,339,24,PURPLE,true);
-            box(166,295,84,68,WHITE,18);center("ВО",208,339,24,PURPLE,true);
-            box(260,295,100,68,0xffffcc66,18);center("БОЙ",310,339,24,INK,true);
+            box(52,220,104,82,WHITE,18);center("СЛО",104,271,28,PURPLE,true);
+            box(168,220,94,82,WHITE,18);center("ВО",215,271,28,PURPLE,true);
+            box(274,220,106,82,0xffffcc66,18);center("БОЙ",327,271,28,INK,true);
+            center("Каждое слово — твой удар",216,344,16,MUTED,false);
             button("Начать играть",42,420,348,60,true,a::showMap);
             if(a.started)button("Продолжить дуэль",42,494,348,52,false,a::continueSaved);
             button("Выход",42,568,348,52,false,a::exitGame);

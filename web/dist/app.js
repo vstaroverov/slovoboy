@@ -1,5 +1,5 @@
-import {Game} from './engine.js?v=111';
-import {Progression} from './progression.js?v=111';
+import {Game} from './engine.js?v=112';
+import {Progression} from './progression.js?v=112';
 const app=document.querySelector('#app'),modal=document.querySelector('#modal');
 const {words,sets}=await fetch('words.json').then(r=>{if(!r.ok)throw Error('Словарь недоступен');return r.json()}).catch(()=>{app.innerHTML='<div class="exit"><h2>Не удалось загрузить словарь</h2><p>Проверьте соединение и обновите страницу.</p></div>';throw Error('Dictionary unavailable')});
 const load=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}},store=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v))}catch{}};
@@ -13,7 +13,7 @@ let sound=load('slovoboy-sound',true),wins=load('slovoboy-wins',{}),history=load
 try{let saved=load('slovoboy-match',null);if(saved&&saved.game&&[1,2].includes(saved.game.level)){game=Game.restore(saved.game,words,sets);started=saved.started;countdown=saved.countdown??2}}catch{game=null}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(text,action,primary=true)=>`<button class="${primary?'primary':'secondary'}" data-action="${action}">${text}</button>`;
-const brand=(compact=false)=>'<div class="brand'+(compact?' brand-footer':'')+'"><img src="brand-mark.svg?v=111" alt="Знак V-Star Games"><strong>V-STAR GAMES</strong><small>by V-STAR Group</small></div>';
+const brand=(compact=false)=>'<div class="brand'+(compact?' brand-footer':'')+'"><img src="brand-mark.svg?v=112" alt="Знак V-Star Games"><strong>V-STAR GAMES</strong><small>by V-STAR Group</small></div>';
 const soundButton=()=>`<div class="sound-control"><button class="sound" data-action="sound" aria-pressed="${sound}">Звук: ${sound?'вкл':'выкл'}</button><label><span>Громкость <output>${volume}%</output></span><input type="range" min="0" max="100" step="1" value="${volume}" aria-label="Громкость звука" data-volume></label></div>`;
 const time=()=>`${Math.floor((90-game.elapsed)/60).toString().padStart(2,'0')}:${((90-game.elapsed)%60).toString().padStart(2,'0')}`;
 const names=['select','place','remove','error','draw','exchange','dealer','start','hit','bot_hit','round','win','lose'];
@@ -51,7 +51,7 @@ function showLevelUp(){if(!progression.pendingLevel||document.hidden||modal.open
 function renderContent(){
  if(screen==='splash'){app.innerHTML='<section class="splash"><div class="splash-primary"><h1>СЛОВОБОЙ</h1><p>Каждое слово — твой удар</p></div>'+brand(true)+'</section>';return}
  if(screen==='exit'){app.innerHTML=profileHeader()+'<section class="exit"><h2>До новой дуэли!</h2><p class="install">Игру можно закрыть. Прогресс сохранён.</p><div class="actions">'+button('Вернуться в игру','menu')+'</div></section>';return}
- if(screen==='menu'){app.innerHTML=profileHeader()+'<section class="home"><div class="home-primary"><h1>СЛОВОБОЙ</h1><p class="muted">Каждое слово — твой удар</p><div class="wordmark"><span>СЛО</span><span>ВО</span><span>БОЙ</span></div><div class="actions">'+button('Начать играть','map')+(game?button('Продолжить дуэль','continue',false):'')+button('Выход','exit',false)+'</div>'+soundButton()+'<p class="install">Для iPhone: «Поделиться» → «На экран Домой».<br>Играть можно прямо в Safari.</p></div>'+brand(true)+'</section>';return}
+ if(screen==='menu'){app.innerHTML=profileHeader()+'<section class="home"><div class="home-primary"><h1 class="wordmark" aria-label="Словобой"><span aria-hidden="true">СЛО</span><span aria-hidden="true">ВО</span><span aria-hidden="true">БОЙ</span></h1><p class="muted">Каждое слово — твой удар</p><div class="actions">'+button('Начать играть','map')+(game?button('Продолжить дуэль','continue',false):'')+button('Выход','exit',false)+'</div>'+soundButton()+'<p class="install">Для iPhone: «Поделиться» → «На экран Домой».<br>Играть можно прямо в Safari.</p></div>'+brand(true)+'</section>';return}
  if(screen==='map'){app.innerHTML=profileHeader()+`<section class="map"><h2>Карта уровней</h2><p class="muted">Выберите свой следующий вызов</p><div class="path">${[1,2].map(l=>`<button class="level" data-level="${l}"><div class="level-head"><i class="${wins[l]?'won':''}">${wins[l]?'✓':l}</i><div><h3>${l===1?'Классика':'Открытия'}</h3><div class="eyebrow">${wins[l]?'ПОБЕДА ЗАСЧИТАНА':'ДОСТУПЕН'}</div></div></div><p>${l===1?'36 слов · правила RC3':'360 слов · правила RC5'}</p><small>${l===1?'Раздача каждые 10 секунд':'При пустой руке — фишка через 1 с'}</small></button>`).join('')}<div class="future">Скоро</div></div><footer><p class="muted">Новые правила — на следующих уровнях</p><div class="actions">${button('На главную','menu',false)}</div></footer></section>`;return}
  if(!started){app.innerHTML=profileHeader()+`<section class="countdown"><div><div class="panel" style="margin-top:40px"><h2>Подбираем соперника...</h2><p class="muted" style="margin-top:15px">До начала дуэли</p><b>${countdown}</b><p>Собирайте слова и наносите урон</p></div>${soundButton()}${brand(true)}</div></section>`;return}
  if(game.result){renderResult();return}

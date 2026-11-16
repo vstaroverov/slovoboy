@@ -36,3 +36,9 @@ dialog{max-height:calc(100dvh - 24px);max-width:min(400px,calc(100vw - 24px));ov
 .countdown>div{display:flex;flex-direction:column;align-items:stretch;gap:14px}.countdown .panel{margin-top:0!important}.countdown .brand-footer{margin-top:8px}
 @media(max-height:700px){.home .home-primary h1{font-size:36px}.brand.brand-footer{margin-top:12px}}
 @media(max-height:580px){.home .home-primary h1,.splash-primary h1{font-size:30px}.brand.brand-footer{margin-top:9px}}
+
+/* The syllable cards are the single title, including on short screens. */
+.home .home-primary .wordmark{display:flex!important;justify-content:center;gap:10px;margin:0 0 18px;font-weight:800;letter-spacing:0}
+.home .home-primary .wordmark span{font-size:30px;line-height:1.1;padding:16px 18px;border-radius:16px}
+.home-primary>.muted{margin:0 0 26px;font-size:15px}.home-primary>.actions{margin-top:0}
+@media(max-width:370px),(max-height:580px){.home .home-primary .wordmark{gap:8px;margin-bottom:14px}.home .home-primary .wordmark span{font-size:24px;padding:14px 12px}.home-primary>.muted{font-size:13px;margin-bottom:20px}}
